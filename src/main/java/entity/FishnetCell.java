@@ -16,6 +16,8 @@ import java.util.Objects;
 @ToString
 @RequiredArgsConstructor
 
+//
+
 @Entity
 @Table(name = "fishnet")
 public class FishnetCell implements Serializable {

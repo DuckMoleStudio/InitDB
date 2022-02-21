@@ -33,7 +33,7 @@ import java.util.Objects;
 })
 
 @Entity
-@Table(name = "routes")
+@Table(name = "routes_new")
 public class Route implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -53,17 +53,22 @@ public class Route implements Serializable {
     private String[] stops;
 
     @Type(type = "double-array")
-    @Column(name = "distances")
-    private double[] distances;
-
-
-    @Column(name = "geom",columnDefinition = "geometry(MultiLineString,4326)")
-    private MultiLineString geomML;
+    @Column(name = "hops")
+    private double[] hops;
 
     @Column(name = "route_id")
     private String rid;
     @Column(name = "route_dir")
     private String dir;
+
+    @Column(name = "interval")
+    private double interval;
+
+
+    @Column(name = "geom",columnDefinition = "geometry(MultiLineString,4326)")
+    private MultiLineString geomML;
+
+
 
     @Override
     public boolean equals(Object o) {

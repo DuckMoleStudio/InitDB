@@ -33,6 +33,15 @@ public class BusStopService {
         session.close();
     }
 
+    public static void deleteBusStop (BusStop busStop)
+    {
+        Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
+        Transaction tx1 = session.beginTransaction();
+        session.delete(busStop);
+        tx1.commit();
+        session.close();
+    }
+
     public static void updateBusStop (BusStop busStop)
     {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();

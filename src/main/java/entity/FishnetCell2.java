@@ -41,6 +41,8 @@ public class FishnetCell2 implements Serializable {
     private double metroFull;
     @Column(name = "nearest_metro")
     private String nearestMetro;
+    @Column(name = "nearest_metro_car")
+    private String nearestMetroCar;
     @Column(name = "min_dist_to_metro_car")
     private double metroCar;
 

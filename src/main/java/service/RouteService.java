@@ -1,7 +1,6 @@
 package service;
 
 import entity.Route;
-import entity.Route2;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.query.Query;
@@ -46,6 +45,14 @@ public class RouteService {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
         Transaction tx1 = session.beginTransaction();
         session.save(route);
+        tx1.commit();
+        session.close();
+    }
+
+    public static void deleteRoute(Route route) {
+        Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
+        Transaction tx1 = session.beginTransaction();
+        session.delete(route);
         tx1.commit();
         session.close();
     }
