@@ -64,6 +64,10 @@ public class Route implements Serializable {
     @Column(name = "interval")
     private double interval;
 
+    @Column(name = "total_time")
+    private double totalTime;
+    @Column(name = "total_distance")
+    private double totalDistance;
 
     @Column(name = "geom",columnDefinition = "geometry(MultiLineString,4326)")
     private MultiLineString geomML;

@@ -1,43 +1,42 @@
 package service;
 
-import entity.FishnetCell;
-import entity.FishnetCell2;
+import entity.FishnetStatic;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import utils.HibernateSessionFactoryUtil;
 
 import java.util.List;
 
-public class FishnetCell2Service {
+public class FishnetStaticService {
 
-    public static FishnetCell2 getFishnetCellById (int id)
+    public static FishnetStatic getFishnetStaticById (int id)
     {
-        return HibernateSessionFactoryUtil.getSessionFactory().openSession().get(FishnetCell2.class, id);
+        return HibernateSessionFactoryUtil.getSessionFactory().openSession().get(FishnetStatic.class, id);
     }
 
-    public static List<FishnetCell2> listFishnetCells2()
+    public static List<FishnetStatic> listFishnetStatic()
     {
-        return (List<FishnetCell2>)  HibernateSessionFactoryUtil
+        return (List<FishnetStatic>)  HibernateSessionFactoryUtil
                 .getSessionFactory()
                 .openSession()
-                .createQuery("From FishnetCell2")
+                .createQuery("From FishnetStatic")
                 .list();
     }
 
-    public static void addFishnetCell2 (FishnetCell2 fishnetCell)
+    public static void addFishnetStatic (FishnetStatic fishnetStatic)
     {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
         Transaction tx1 = session.beginTransaction();
-        session.save(fishnetCell);
+        session.save(fishnetStatic);
         tx1.commit();
         session.close();
     }
 
-    public static void updateFishnetCell2 (FishnetCell2 fishnetCell)
+    public static void updateFishnetStatic (FishnetStatic fishnetStatic)
     {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
         Transaction tx1 = session.beginTransaction();
-        session.update(fishnetCell);
+        session.update(fishnetStatic);
         tx1.commit();
         session.close();
     }

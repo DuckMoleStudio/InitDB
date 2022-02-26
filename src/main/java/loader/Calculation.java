@@ -9,10 +9,7 @@ import com.graphhopper.routing.util.EdgeFilter;
 import com.graphhopper.storage.index.Snap;
 import com.graphhopper.util.Parameters;
 import com.graphhopper.util.shapes.GHPoint;
-import entity.BusStop;
-import entity.FishnetCell2;
-import entity.Metro;
-import entity.Route;
+import entity.*;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -25,15 +22,22 @@ import static org.locationtech.jts.algorithm.Centroid.getCentroid;
 import static service.BusStopService.*;
 import static service.FishnetCell2Service.listFishnetCells2;
 import static service.FishnetCell2Service.updateFishnetCell2;
+import static service.FishnetDataService.*;
+import static service.FishnetStaticService.listFishnetStatic;
 import static service.RouteService.*;
+import static service.VersionService.*;
 
 public class Calculation {
-    public static void CalcTripHops(double speedRatio, String osmFile, String dir) {
+    public static void CalcTripHops(double speedRatio, int stopDelay, String osmFile, String dir) {
+
+        final double FakeTime = 60;
+        final double FakeDistance = 700;
 
         long startTime = System.currentTimeMillis();
         int badCount=0;
 
         List<Route> routes = listRoutes();
+
 
         // GH preparation
         GraphHopper hopper = new GraphHopper();
@@ -48,6 +52,10 @@ public class Calculation {
         hopper.importOrLoad();
 
         for(Route route: routes) {
+
+            double totalTime = 0;
+            double totalDistance = 0;
+
             List<Double> hops = new ArrayList<>();
             for (int i = 0; i < route.getStops().length - 1; i++) {
 
@@ -75,16 +83,26 @@ public class Calculation {
 
                 if (res.hasErrors()) {
                     System.out.println(route.getStops()[i] + " -> " + route.getStops()[i+1]);
-                    hops.add(60d);
+                    hops.add(FakeTime);
+                    totalTime += FakeTime;
+                    totalTime += stopDelay;
+                    totalDistance += FakeDistance;
                     badCount++;
                     //throw new RuntimeException(res.getErrors().toString());
                 }
                 else
-                    hops.add((double) (res.getBest().getTime() / 1000));
+                {
+                    hops.add((double) (res.getBest().getTime() / 1000 * speedRatio));
+                    totalTime += (double) (res.getBest().getTime() / 1000 * speedRatio);
+                    totalTime += stopDelay;
+                    totalDistance += res.getBest().getDistance();
+                }
             }
             double[] dd = new double[hops.size()];
-            for(int i=0;i< hops.size();i++) dd[i]=hops.get(i)*speedRatio;
+            for(int i=0;i< hops.size();i++) dd[i]=hops.get(i);
             route.setHops(dd);
+            route.setTotalTime(totalTime);
+            route.setTotalDistance(totalDistance);
             updateRoute(route);
         }
         System.out.printf("\n\n===== Calculated hop times for %d routes in %d seconds with %d errors ======\n\n"
@@ -226,9 +244,51 @@ public class Calculation {
             updateFishnetCell2(cell);
         }
 
+
+
         System.out.printf("\n\n===== Calculated distances for %d cells in %d seconds ======\n\n"
                 , cells.size(), (System.currentTimeMillis()-startTime)/1000);
     }
+
+    public static void CalcCellMinDistToStopVer(Version version) {
+
+        long startTime = System.currentTimeMillis();
+        GeometryFactory gf = new GeometryFactory(new PrecisionModel(),4326);
+
+        List<FishnetData> dataList = new ArrayList<>();
+
+        Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
+        List<FishnetStatic> cells = listFishnetStatic();
+        for(FishnetStatic cell: cells)
+        {
+            Query query = session.createQuery(
+                    "select distance(transform(p.geom,98568), transform(:cell,98568)) as d from BusStop p " +
+                            "where dwithin(p.geom, :cell, 0.03) = true and p.active = true " +
+                            "order by distance(transform(p.geom,98568), transform(:cell,98568))",
+                    Double.class);
+            query.setParameter("cell", gf.createPoint(getCentroid(cell.getGeom())));
+            query.setMaxResults(1);
+            List<Double> distances = query.getResultList();
+
+            FishnetData fishnetData = new FishnetData();
+            FishnetVersionKey key = new FishnetVersionKey(cell,version);
+            fishnetData.setId(key);
+
+            if(!distances.isEmpty())
+                fishnetData.setMinStopDist(distances.get(0));
+            else fishnetData.setMinStopDist(Double.POSITIVE_INFINITY);
+
+            dataList.add(fishnetData);
+        }
+
+        version.setFishnetDataList(dataList);
+        addVersion(version);
+
+
+        System.out.printf("\n\n===== Calculated distances for %d cells in %d seconds ======\n\n"
+                , cells.size(), (System.currentTimeMillis()-startTime)/1000);
+    }
+
 
     public static void CalcCellMetroAll(int Radius,
                                         int RadiusMetro,
@@ -364,5 +424,160 @@ public class Calculation {
         System.out.printf("\n\n===== Calculated metro distances for %d cells in %d seconds ======\n\n"
                 , cells.size(), (System.currentTimeMillis()-startTime)/1000);
     }
+
+    public static void CalcCellMetroAllVer(int Radius,
+                                        int RadiusMetro,
+                                        int PedestrianSpeed,
+                                        String osmFile,
+                                        String dir,
+                                        double speedRatio,
+                                        int SnapDistance,
+                                           Version version)
+    {
+        long startTime = System.currentTimeMillis();
+        GeometryFactory gf = new GeometryFactory(new PrecisionModel(),4326);
+
+        Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
+        List<FishnetStatic> staticCells = listFishnetStatic();
+
+        List<FishnetData> dataCells = new ArrayList<>();
+
+        // GH preparation
+        GraphHopper hopper = new GraphHopper();
+        hopper.setOSMFile(osmFile);
+        hopper.setGraphHopperLocation(dir);
+
+        hopper.setProfiles(
+                new Profile("car1").setVehicle("car").setWeighting("fastest").setTurnCosts(false),
+                new Profile("car2").setVehicle("car").setWeighting("fastest").setTurnCosts(true)
+                        .putHint("u_turn_costs", 60)
+        );
+        hopper.getCHPreparationHandler().setCHProfiles(new CHProfile("car1"), new CHProfile("car2"));
+        hopper.importOrLoad();
+
+        for(FishnetStatic cell: staticCells)
+        {
+            Query query = session.createQuery(
+                    "select p.tripSimple, p.tripFull, p.nearestMetro," +
+                            "distance(transform(p.geom,98568), transform(:cell,98568)) from BusStop p " +
+                            "where dwithin(transform(p.geom,98568), transform(:cell,98568), :radius) " +
+                            "= true and p.active = true");
+            query.setParameter("cell", gf.createPoint(getCentroid(cell.getGeom())));
+            query.setParameter("radius", Radius);
+            List<Object[]> stops = (List<Object[]>)query.list();
+
+            List<Double> distances = new ArrayList<>();
+            FishnetData dataCell = new FishnetData();
+            FishnetVersionKey key = new FishnetVersionKey(cell,version);
+            dataCell.setId(key);
+
+            if(!stops.isEmpty())
+            {
+                double minSimple = Double.POSITIVE_INFINITY;
+                double minFull = Double.POSITIVE_INFINITY;
+                String nearest = "no routes";
+                for(Object[] stop: stops)
+                {
+                    distances.add((Double)stop[3]);
+
+                    if((Double)stop[0]<minSimple)
+                        minSimple=(Double)stop[0];
+
+                    if((Double)stop[1]+(Double)stop[3]*PedestrianSpeed<minFull)
+                    {
+                        minFull=(Double)stop[1]+(Double)stop[3]*PedestrianSpeed;
+                        nearest=(String) stop[2];
+                    }
+                }
+                dataCell.setMetroSimple(minSimple);
+                dataCell.setMetroFull(minFull);
+                dataCell.setNearestMetro(nearest);
+
+                Collections.sort(distances);
+                dataCell.setMinStopDist(distances.get(0));
+            }
+            else
+            {
+                dataCell.setMetroSimple(Double.POSITIVE_INFINITY);
+                dataCell.setMetroFull(Double.POSITIVE_INFINITY);
+                dataCell.setNearestMetro("no stops");
+                dataCell.setMinStopDist(Double.POSITIVE_INFINITY);
+            }
+
+            // check road availability
+            double startLon = getCentroid(cell.getGeom()).getX();
+            double startLat = getCentroid(cell.getGeom()).getY();
+
+            Snap snap = hopper.getLocationIndex().findClosest(startLat,startLon, EdgeFilter.ALL_EDGES);
+            if(snap.isValid()&&snap.getQueryDistance()<SnapDistance)
+            {
+                query = session.createQuery(
+                        "select p from Metro p " +
+                                "where dwithin(transform(p.geom,98568), transform(:cell,98568), :radius) = true ", Metro.class);
+                query.setParameter("cell", gf.createPoint(getCentroid(cell.getGeom())));
+                query.setParameter("radius", RadiusMetro);
+
+                List<Metro> metros = query.getResultList();
+
+                dataCell.setMetroCar(Double.POSITIVE_INFINITY);
+                boolean isRoad = true;
+
+                if (!metros.isEmpty()) {
+                    for (Metro metro : metros) {
+                        // now get coordinates & run GH
+                        double destLon = metro.getGeom().getCoordinate().getX();
+                        double destLat = metro.getGeom().getCoordinate().getY();
+
+                        double distance;
+
+                        GHRequest req = new GHRequest().setAlgorithm(Parameters.Algorithms.ASTAR_BI);
+                        req.setProfile("car1");
+                        req.addPoint(new GHPoint(startLat, startLon));
+                        req.addPoint(new GHPoint(destLat, destLon));
+
+                        GHResponse res = hopper.route(req);
+
+                        if (res.hasErrors()) {
+                            isRoad = false;
+                            //throw new RuntimeException(res.getErrors().toString());
+                        } else
+                        {
+                            distance = res.getBest().getTime() / 1000 * speedRatio;
+                            if (distance < dataCell.getMetroCar())
+                            {
+                                dataCell.setMetroCar(distance);
+                                dataCell.setNearestMetroCar(String.valueOf(metro.getId()));
+                            }
+                        }
+                    }
+
+                    if (!isRoad)
+                    {
+                        dataCell.setMetroCar(Double.POSITIVE_INFINITY);
+                        dataCell.setNearestMetroCar("no nothing");
+                    }
+                } else {
+                    dataCell.setMetroCar(Double.POSITIVE_INFINITY);
+                    dataCell.setNearestMetroCar("no metro");
+                }
+            }
+            else
+            {
+                dataCell.setMetroCar(Double.POSITIVE_INFINITY);
+                dataCell.setNearestMetroCar("no road");
+            }
+
+            dataCells.add(dataCell);
+        }
+
+        version.setFishnetDataList(dataCells);
+        addVersion(version);
+
+        session.close();
+        System.out.printf("\n\n===== Calculated metro distances for %d cells in %d seconds ======\n\n"
+                , staticCells.size(), (System.currentTimeMillis()-startTime)/1000);
+    }
+
+
 
 }
