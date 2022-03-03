@@ -17,25 +17,31 @@ public class CalculateModel {
         final int StopDelay = 30; // sec, time loss for stopping
         final int PedestrianSpeed = 1; // in m/s, 1 equals 3.6 km/h but we have air distances so ok
         final int IntervalDummy = 600; // in case not available
-        final int Radius = 600; // meters, looking for stops in this radius
-        final int RadiusMetro = 3000; // meters, looking for metro in this radius
-        final int SnapDistance = 600; // no road radius
+        final int Radius = 500; // meters, looking for stops in this radius
+        final int RadiusMetro = 6000; // meters, looking for metro in this radius
+        final int SnapDistance = 500; // no road radius
 
         // route hops
         //CalcTripHops(speedRatio, StopDelay, osmFile, dir);
+        //CalcTripHopsVer(speedRatio, StopDelay, osmFile, dir);
 
         // stop dist to metro
         //CalcStopMinDistToMetro();
+        //CalcStopMinDistToMetroVer();
 
         // trips from stops to metro
         //CalcStopToMetro(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy);
+        //CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, 3);
 
         // cell dist to active stops
         //CalcCellMinDistToStop();
+        //CalcCellMinDistToStopHS(4);
 
+        /*
         Version version = new Version();
         version.setDesc("Radius for metro/road 600m, metro search radius for car 3000m");
         version.setDate(Date.valueOf("2022-2-24"));
+         */
 
         //CalcCellMinDistToStopVer(version);
 
@@ -44,6 +50,7 @@ public class CalculateModel {
         //deleteVersion(version);
 
         // cell to metro
-        CalcCellMetroAllVer(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, version);
+        //CalcCellMetroAllVer(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, version);
+        CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, 3);
     }
 }

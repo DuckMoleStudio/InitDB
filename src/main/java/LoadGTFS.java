@@ -1,3 +1,6 @@
+import java.util.HashMap;
+import java.util.Map;
+
 import static loader.ImportGTFS.*;
 
 public class LoadGTFS {
@@ -11,19 +14,33 @@ public class LoadGTFS {
         final String geomFile = "c:/matrix/GTFS/GTFS_TRIP_SHAPES.TXT";
         final String intervalFile = "c:/matrix/GTFS/GTFS_INTERVAL.TXT";
 
+        Map<Integer,String> excludeRoutes = new HashMap<>();
+        Map<Integer,String> includeTrips = new HashMap<>();
+
+        excludeRoutes.put(8,"Тм");
+        excludeRoutes.put(5,"межсубъектный");
+
+        includeTrips.put(3,"00");
+
         // load stops
-        ImportBusStops(stopFile);
+        ImportBusStopsVer(stopFile,3);
+        //ImportRoutesTripsVer(nameFile,tripFile,excludeRoutes,includeTrips,4);
         // load trips
-        ImportTrips(tripFile);
+        //ImportTrips(tripFile);
         // load names
-        ImportRouteNames(nameFile);
+        //ImportRouteNames(nameFile);
         // load trip stops
-        ImportTripStops(tripStopFile);
+        //ImportTripStops(tripStopFile);
+        //ImportTripStopsVer(tripStopFile);
+
         // delete tram
-        DeleteTram();
+        //DeleteTram();
         // load geom
-        ImportTripGeom(geomFile);
+        //ImportTripGeom(geomFile);
+        //ImportTripGeomVer(geomFile);
+
         // load intervals
-        ImportTripIntervals(intervalFile);
+        //ImportTripIntervals(intervalFile);
+        //ImportTripIntervalsVer(intervalFile);
     }
 }
