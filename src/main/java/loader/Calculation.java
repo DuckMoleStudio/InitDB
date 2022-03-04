@@ -20,8 +20,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.locationtech.jts.algorithm.Centroid.getCentroid;
-import static service.BusStopHSService.listBusStopHSs;
-import static service.BusStopHSService.updateBusStopHS;
+import static service.BusStopHSService.*;
 import static service.BusStopService.*;
 import static service.FishnetCell2Service.listFishnetCells2;
 import static service.FishnetCell2Service.updateFishnetCell2;
@@ -147,9 +146,10 @@ public class Calculation {
             List<Double> hops = new ArrayList<>();
             for (int i = 0; i < trip.getStops().length - 1; i++) {
 
+                //System.out.println(trip.getId() + " ->" + trip.getStops()[i + 1]);
                 // now get coordinates & run GH
-                BusStop stop1 = getBusStopById(Integer.parseInt(trip.getStops()[i]));
-                BusStop stop2 = getBusStopById(Integer.parseInt(trip.getStops()[i + 1]));
+                BusStopHS stop1 = getBusStopHSById(Integer.parseInt(trip.getStops()[i]));
+                BusStopHS stop2 = getBusStopHSById(Integer.parseInt(trip.getStops()[i + 1]));
 
                 double destLon = stop2.getGeom().getCoordinate().getX();
                 double destLat = stop2.getGeom().getCoordinate().getY();
@@ -344,6 +344,9 @@ public class Calculation {
     {
         long startTime = System.currentTimeMillis();
 
+        double verTotalDistance = 0;
+        int stopCount = 0;
+
         List<BusStopHS> stops = listBusStopHSs();
         List<RouteName> routes = listRouteNames();
         Map<Integer, BusStopHS> stopMap = new HashMap<>();
@@ -369,6 +372,8 @@ public class Calculation {
 
         for(Trip trip: trips)
         {
+            verTotalDistance+=trip.getTotalDistance();
+
             List<String> routeStops = new ArrayList<>();
             if(trip.getStops()!=null) // some routes may be crippled
                 routeStops = Arrays.asList(trip.getStops());
@@ -383,7 +388,9 @@ public class Calculation {
             for (String curStopId: routeStops)
             {
                 BusStopHS curStop = stopMap.get(Integer.parseInt(curStopId));
+                if(!curStop.getActive().get(versionId)) stopCount++;
                 curStop.getActive().put(versionId,true);
+
 
                 if(curStop!=null
                         &&routeStops.indexOf(curStopId)<routeStops.size()-1
@@ -435,6 +442,14 @@ public class Calculation {
             }
             updateBusStopHS(busStop);
         }
+
+        Version version = getVersionById(versionId);
+        version.setTotalLength(verTotalDistance);
+        version.setTripCount(trips.size());
+        version.setStopCount(stopCount);
+        updateVersion(version);
+
+
         System.out.printf("\n\n===== Updated %d bus stops in %d seconds ======\n\n"
                 , stops.size(), (System.currentTimeMillis()-startTime)/1000);
     }
@@ -501,7 +516,7 @@ public class Calculation {
             dataList.add(fishnetData);
         }
 
-        version.setFishnetDataList(dataList);
+        //version.setFishnetDataList(dataList);
         addVersion(version);
 
 
@@ -519,18 +534,26 @@ public class Calculation {
         for(FishnetCellHS cell: cells)
         {
             Query query = session.createQuery(
-                    "select distance(transform(p.geom,98568), transform(:cell,98568)) as d from BusStopHS p " +
-                            "where dwithin(p.geom, :cell, 0.03) = true and p.active = true " +
-                            "order by distance(transform(p.geom,98568), transform(:cell,98568))",
-                    Double.class);
+                    "select p.active, distance(transform(p.geom,98568), transform(:cell,98568)) as d from BusStopHS p " +
+                            "where dwithin(p.geom, :cell, 0.03) = true " +
+                            "order by distance(transform(p.geom,98568), transform(:cell,98568))");
             query.setParameter("cell", gf.createPoint(getCentroid(cell.getGeom())));
-            query.setMaxResults(1);
-            List<Double> distances = query.getResultList();
 
-            if(!distances.isEmpty())
-                cell.getMinStopDist().put(versionId,distances.get(0));
+            List<Object[]> stops = (List<Object[]>)query.list();
 
-            else cell.getMinStopDist().put(versionId,Double.POSITIVE_INFINITY);
+            double dist = Double.POSITIVE_INFINITY;
+            if(!stops.isEmpty())
+            {
+                for(Object[] stop: stops)
+                {
+                    boolean active = false;
+                    if(((Map<Integer,Boolean>)stop[0]).get(versionId)!=null)
+                    active = ((Map<Integer,Boolean>)stop[0]).get(versionId);
+                    if(active) dist = (Double) stop[1];
+                }
+
+                cell.getMinStopDist().put(versionId, dist);
+            }
 
             updateFishnetCellHS(cell);
         }
@@ -822,7 +845,7 @@ public class Calculation {
             dataCells.add(dataCell);
         }
 
-        version.setFishnetDataList(dataCells);
+        //version.setFishnetDataList(dataCells);
         addVersion(version);
 
         session.close();

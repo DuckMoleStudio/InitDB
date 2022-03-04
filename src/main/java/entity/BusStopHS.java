@@ -22,7 +22,7 @@ import java.util.Objects;
 @ToString
 @RequiredArgsConstructor
 @Entity
-@Table(name = "bus_stops_hs")
+@Table(name = "bus_stops_ver")
 //@TypeDef(name = "hstore", typeClass = PostgreSQLHStoreType.class)
 @TypeDef(name = "json", typeClass = JsonType.class)
 

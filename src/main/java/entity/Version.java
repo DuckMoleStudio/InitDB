@@ -22,13 +22,23 @@ public class Version {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int VersionId;
 
+    /*
     @JsonIgnore
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, mappedBy = "id.version", orphanRemoval = true)
     private List<FishnetData> fishnetDataList;
 
+
+     */
     @Column(name = "description")
     private String desc;
     @Column(name = "creation_date")
     private Date date;
+
+    @Column(name = "trip_count")
+    private int tripCount;
+    @Column(name = "total_length")
+    private double totalLength;
+    @Column(name = "active_stops")
+    private int stopCount;
 
 }

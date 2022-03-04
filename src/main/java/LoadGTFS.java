@@ -1,7 +1,11 @@
+import entity.Version;
+
+import java.sql.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 import static loader.ImportGTFS.*;
+import static service.VersionService.updateVersion;
 
 public class LoadGTFS {
     public static void main(String[] args) {
@@ -20,18 +24,29 @@ public class LoadGTFS {
         excludeRoutes.put(8,"Тм");
         excludeRoutes.put(5,"межсубъектный");
 
-        includeTrips.put(3,"00");
+        includeTrips.put(3,"У1");
+        includeTrips.put(3,"У2");
+        includeTrips.put(3,"И1");
+        includeTrips.put(3,"Д1");
+
+        /*
+        Version version = new Version();
+        version.setDesc("Только рейсы У1, У2, И1 и Д1");
+        version.setDate(Date.valueOf("2022-3-4"));
+        updateVersion(version);
+
+         */
 
         // load stops
-        ImportBusStopsVer(stopFile,3);
-        //ImportRoutesTripsVer(nameFile,tripFile,excludeRoutes,includeTrips,4);
+        //ImportBusStopsVer(stopFile,3);
+        //ImportRoutesTripsVer(nameFile,tripFile,excludeRoutes,includeTrips, version.getVersionId());
         // load trips
         //ImportTrips(tripFile);
         // load names
         //ImportRouteNames(nameFile);
         // load trip stops
         //ImportTripStops(tripStopFile);
-        //ImportTripStopsVer(tripStopFile);
+        ImportTripStopsVer(tripStopFile);
 
         // delete tram
         //DeleteTram();

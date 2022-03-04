@@ -46,7 +46,7 @@ public class VersionService {
     {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
         Transaction tx1 = session.beginTransaction();
-        session.update(version);
+        session.saveOrUpdate(version);
         tx1.commit();
         session.close();
     }

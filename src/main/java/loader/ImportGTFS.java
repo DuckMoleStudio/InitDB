@@ -322,7 +322,8 @@ public class ImportGTFS {
 
                 // if on valid set
 
-                if (stopMap.containsKey(values[4]))
+                BusStopHS stopValidate = getBusStopHSById(Integer.parseInt(values[10]));
+                if (stopMap.containsKey(values[4])&&stopValidate!=null)
                     stopMap.get(values[4]).add(values[10]);
             }
         } catch (IOException e) {

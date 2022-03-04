@@ -3,8 +3,7 @@ import entity.Version;
 import java.sql.Date;
 
 import static loader.Calculation.*;
-import static service.VersionService.deleteVersion;
-import static service.VersionService.getVersionById;
+import static service.VersionService.*;
 
 public class CalculateModel {
     public static void main(String[] args) {
@@ -18,7 +17,7 @@ public class CalculateModel {
         final int PedestrianSpeed = 1; // in m/s, 1 equals 3.6 km/h but we have air distances so ok
         final int IntervalDummy = 600; // in case not available
         final int Radius = 500; // meters, looking for stops in this radius
-        final int RadiusMetro = 6000; // meters, looking for metro in this radius
+        final int RadiusMetro = 2000; // meters, looking for metro in this radius
         final int SnapDistance = 500; // no road radius
 
         // route hops
@@ -29,13 +28,15 @@ public class CalculateModel {
         //CalcStopMinDistToMetro();
         //CalcStopMinDistToMetroVer();
 
+
+
         // trips from stops to metro
         //CalcStopToMetro(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy);
-        //CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, 3);
+        //CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, 5);
 
         // cell dist to active stops
         //CalcCellMinDistToStop();
-        //CalcCellMinDistToStopHS(4);
+        CalcCellMinDistToStopHS(4);
 
         /*
         Version version = new Version();
@@ -51,6 +52,6 @@ public class CalculateModel {
 
         // cell to metro
         //CalcCellMetroAllVer(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, version);
-        CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, 3);
+        //CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, 5);
     }
 }
