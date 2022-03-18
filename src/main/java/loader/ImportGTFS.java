@@ -180,26 +180,36 @@ public class ImportGTFS {
             while ((line = br.readLine()) != null) {
                 String[] values = line.split(";");
 
+                boolean update = false;
+                Trip trip = new Trip();
+                trip.setId(Integer.parseInt(values[0]));
+                trip.setRid(values[1]);
+                trip.setDir(values[4]);
+
+                if(getTripById(Integer.parseInt(values[0]))!=null)
+                {
+                    trip = getTripById(Integer.parseInt(values[0]));
+                    update=true;
+                }
+
+                if(trip.getVersions() == null) trip.setVersions(new HashMap<>());
+                trip.getVersions().put(versionId,false);
+
                 //condition
                 boolean valid = false;
                 for(Map.Entry<Integer,String> me: includeTrips.entrySet())
                     if(values[me.getKey()].equals(me.getValue()))  valid=true;
 
                 //if(values[3].equals("00"))
-                if(valid)
+                if(valid && routes.containsKey(Integer.valueOf(values[1])))
                 {
-                    Trip trip = new Trip();
-                    trip.setId(Integer.parseInt(values[0]));
-                    trip.setRid(values[1]);
-                    trip.setDir(values[4]);
-
-                    if(routes.containsKey(Integer.valueOf(values[1])))
-                    {
                         routes.get(Integer.valueOf(values[1])).getTrips().get(versionId).add(Integer.valueOf(values[0]));
-                        updateTrip(trip);
-                        countTrips++;
-                    }
+                        trip.getVersions().put(versionId,true);
+                        update=true;
+                    countTrips++;
                 }
+                if(update)
+                updateTrip(trip);
 
             }
         }

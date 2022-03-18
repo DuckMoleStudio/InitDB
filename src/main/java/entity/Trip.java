@@ -2,6 +2,7 @@ package entity;
 
 import com.vladmihalcea.hibernate.type.array.DoubleArrayType;
 import com.vladmihalcea.hibernate.type.array.StringArrayType;
+import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.*;
 import org.hibernate.Hibernate;
 import org.hibernate.annotations.Type;
@@ -14,6 +15,9 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Getter
@@ -22,14 +26,9 @@ import java.util.Objects;
 @RequiredArgsConstructor
 
 @TypeDefs({
-        @TypeDef(
-                name = "string-array",
-                typeClass = StringArrayType.class
-        ),
-        @TypeDef(
-                name = "double-array",
-                typeClass = DoubleArrayType.class
-        )
+        @TypeDef(name = "string-array", typeClass = StringArrayType.class),
+        @TypeDef(name = "double-array", typeClass = DoubleArrayType.class),
+        @TypeDef(name = "json", typeClass = JsonType.class)
 })
 
 @Entity
@@ -66,6 +65,10 @@ public class Trip implements Serializable {
 
     @Column(name = "geom",columnDefinition = "geometry(MultiLineString,4326)")
     private MultiLineString geomML;
+
+    @Type(type = "json")
+    @Column(name = "versions",columnDefinition = "json")
+    private Map<Integer, Boolean> versions = new HashMap<>();
 
 
 

@@ -5,7 +5,9 @@ import com.graphhopper.GHResponse;
 import com.graphhopper.GraphHopper;
 import com.graphhopper.config.CHProfile;
 import com.graphhopper.config.Profile;
+import com.graphhopper.routing.util.BusFlagEncoder;
 import com.graphhopper.routing.util.EdgeFilter;
+import com.graphhopper.routing.util.NGPTFlagEncoder;
 import com.graphhopper.storage.index.Snap;
 import com.graphhopper.util.Parameters;
 import com.graphhopper.util.shapes.GHPoint;
@@ -131,11 +133,25 @@ public class Calculation {
         hopper.setOSMFile(osmFile);
         hopper.setGraphHopperLocation(dir);
 
+        hopper.getEncodingManagerBuilder().add(new BusFlagEncoder(5,5,1));
+        hopper.getEncodingManagerBuilder().add(new NGPTFlagEncoder(5,5,1));
+
         hopper.setProfiles(
+                new Profile("ngpt1").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(false),
+                new Profile("ngpt2").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60),
+                new Profile("bus1").setVehicle("bus").setWeighting("fastest").setTurnCosts(false),
+                new Profile("bus2").setVehicle("bus").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60),
                 new Profile("car1").setVehicle("car").setWeighting("fastest").setTurnCosts(false),
                 new Profile("car2").setVehicle("car").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60)
         );
-        hopper.getCHPreparationHandler().setCHProfiles(new CHProfile("car1"), new CHProfile("car2"));
+        hopper.getCHPreparationHandler().setCHProfiles(
+                new CHProfile("ngpt1"),
+                new CHProfile("ngpt2"),
+                new CHProfile("bus1"),
+                new CHProfile("bus2"),
+                new CHProfile("car1"),
+                new CHProfile("car2")
+        );
         hopper.importOrLoad();
 
         for(Trip trip: trips) {
@@ -158,11 +174,12 @@ public class Calculation {
                 double startLat = stop1.getGeom().getCoordinate().getY();
 
                 GHRequest req = new GHRequest().setAlgorithm(Parameters.Algorithms.ASTAR_BI);
-                req.setProfile("car1");
+                req.setProfile("ngpt1");
                 req.addPoint(new GHPoint(startLat, startLon));
                 req.addPoint(new GHPoint(destLat, destLon));
 
                 //req.setCurbsides(Arrays.asList("right", "right"));
+                req.setSnapPreventions(Arrays.asList("bridge", "tunnel"));
                 req.putHint("instructions", false);
                 req.putHint("calc_points", false);
                 //req.putHint(Parameters.Routing.FORCE_CURBSIDE, false);
@@ -549,12 +566,14 @@ public class Calculation {
                     boolean active = false;
                     if(((Map<Integer,Boolean>)stop[0]).get(versionId)!=null)
                     active = ((Map<Integer,Boolean>)stop[0]).get(versionId);
-                    if(active) dist = (Double) stop[1];
+                    if(active)
+                    {
+                        dist = (Double) stop[1];
+                        break;
+                    }
                 }
-
                 cell.getMinStopDist().put(versionId, dist);
             }
-
             updateFishnetCellHS(cell);
         }
 
@@ -873,12 +892,25 @@ public class Calculation {
         hopper.setOSMFile(osmFile);
         hopper.setGraphHopperLocation(dir);
 
+        hopper.getEncodingManagerBuilder().add(new BusFlagEncoder(5,5,1));
+        hopper.getEncodingManagerBuilder().add(new NGPTFlagEncoder(5,5,1));
+
         hopper.setProfiles(
+                new Profile("ngpt1").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(false),
+                new Profile("ngpt2").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60),
+                new Profile("bus1").setVehicle("bus").setWeighting("fastest").setTurnCosts(false),
+                new Profile("bus2").setVehicle("bus").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60),
                 new Profile("car1").setVehicle("car").setWeighting("fastest").setTurnCosts(false),
-                new Profile("car2").setVehicle("car").setWeighting("fastest").setTurnCosts(true)
-                        .putHint("u_turn_costs", 60)
+                new Profile("car2").setVehicle("car").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60)
         );
-        hopper.getCHPreparationHandler().setCHProfiles(new CHProfile("car1"), new CHProfile("car2"));
+        hopper.getCHPreparationHandler().setCHProfiles(
+                new CHProfile("ngpt1"),
+                new CHProfile("ngpt2"),
+                new CHProfile("bus1"),
+                new CHProfile("bus2"),
+                new CHProfile("car1"),
+                new CHProfile("car2")
+        );
         hopper.importOrLoad();
 
         for(FishnetCellHS cell: cells)
@@ -917,11 +949,11 @@ public class Calculation {
 
                         if (active)
                         {
-
                             if (curSimple < minSimple)
                                 minSimple = curSimple;
 
-                            if (curFull < minFull) {
+                            if (curFull < minFull)
+                            {
                                 minFull = curFull;
                                 nearest = ((Map<Integer,String>)stop[2]).get(versionId);
                             }
@@ -968,7 +1000,7 @@ public class Calculation {
                         double distance;
 
                         GHRequest req = new GHRequest().setAlgorithm(Parameters.Algorithms.ASTAR_BI);
-                        req.setProfile("car1");
+                        req.setProfile("ngpt1");
                         req.addPoint(new GHPoint(startLat, startLon));
                         req.addPoint(new GHPoint(destLat, destLon));
 

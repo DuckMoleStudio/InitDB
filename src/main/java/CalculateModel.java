@@ -9,7 +9,7 @@ public class CalculateModel {
     public static void main(String[] args) {
 
         // CONTROLS
-        final double speedRatio = 1.7;
+        final double speedRatio = 2.0;
         final String osmFile = "C:/matrix/RU-MOW.osm.pbf";
         final String dir = "local/graphhopper";
         final int MetroCriteria = 150; // meters, if stop is within, then it's a metro stop
@@ -17,7 +17,7 @@ public class CalculateModel {
         final int PedestrianSpeed = 1; // in m/s, 1 equals 3.6 km/h but we have air distances so ok
         final int IntervalDummy = 600; // in case not available
         final int Radius = 500; // meters, looking for stops in this radius
-        final int RadiusMetro = 2000; // meters, looking for metro in this radius
+        final int RadiusMetro = 6000; // meters, looking for metro in this radius
         final int SnapDistance = 500; // no road radius
 
         // route hops
@@ -32,11 +32,11 @@ public class CalculateModel {
 
         // trips from stops to metro
         //CalcStopToMetro(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy);
-        //CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, 5);
+        CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, 5);
 
         // cell dist to active stops
         //CalcCellMinDistToStop();
-        CalcCellMinDistToStopHS(4);
+        //CalcCellMinDistToStopHS(5);
 
         /*
         Version version = new Version();
@@ -52,6 +52,6 @@ public class CalculateModel {
 
         // cell to metro
         //CalcCellMetroAllVer(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, version);
-        //CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, 5);
+        CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, 5);
     }
 }
