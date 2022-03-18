@@ -1,10 +1,8 @@
 package service;
 
-import entity.Route;
 import entity.Version;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import org.hibernate.query.Query;
 import utils.HibernateSessionFactoryUtil;
 
 import java.util.List;
@@ -35,7 +33,6 @@ public class VersionService {
 
     public static void deleteVersion(Version version) {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
-        //Session session = HibernateSessionFactoryUtil.getSessionFactory().getCurrentSession();
         Transaction tx1 = session.beginTransaction();
         session.delete(version);
         tx1.commit();

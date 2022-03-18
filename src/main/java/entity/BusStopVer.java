@@ -1,6 +1,5 @@
 package entity;
 
-import com.vladmihalcea.hibernate.type.basic.PostgreSQLHStoreType;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.*;
 import org.hibernate.Hibernate;
@@ -26,7 +25,7 @@ import java.util.Objects;
 //@TypeDef(name = "hstore", typeClass = PostgreSQLHStoreType.class)
 @TypeDef(name = "json", typeClass = JsonType.class)
 
-public class BusStopHS implements Serializable {
+public class BusStopVer implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @Column(name = "stop_id", nullable = false)
@@ -65,7 +64,7 @@ public class BusStopHS implements Serializable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
-        BusStopHS busStop = (BusStopHS) o;
+        BusStopVer busStop = (BusStopVer) o;
         return id != 0 && Objects.equals(id, busStop.id);
     }
 

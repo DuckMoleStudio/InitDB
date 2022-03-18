@@ -1,50 +1,50 @@
 package service;
 
-import entity.BusStopHS;
+import entity.BusStopVer;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import utils.HibernateSessionFactoryUtil;
 
 import java.util.List;
 
-public class BusStopHSService {
-    public static BusStopHS getBusStopHSById (int id)
+public class BusStopVerService {
+    public static BusStopVer getBusStopVerById (int id)
     {
-        return HibernateSessionFactoryUtil.getSessionFactory().openSession().get(BusStopHS.class, id);
+        return HibernateSessionFactoryUtil.getSessionFactory().openSession().get(BusStopVer.class, id);
     }
 
-    public static List<BusStopHS> listBusStopHSs()
+    public static List<BusStopVer> listBusStopVers()
     {
-        return (List<BusStopHS>)  HibernateSessionFactoryUtil
+        return (List<BusStopVer>)  HibernateSessionFactoryUtil
                 .getSessionFactory()
                 .openSession()
-                .createQuery("From BusStopHS")
+                .createQuery("From BusStopVer")
                 .list();
     }
 
-    public static void addBusStopHS (BusStopHS busStopHS)
+    public static void addBusStopVer (BusStopVer busStopVer)
     {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
         Transaction tx1 = session.beginTransaction();
-        session.save(busStopHS);
+        session.save(busStopVer);
         tx1.commit();
         session.close();
     }
 
-    public static void deleteBusStopHS (BusStopHS busStopHS)
+    public static void deleteBusStopVer (BusStopVer busStopVer)
     {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
         Transaction tx1 = session.beginTransaction();
-        session.delete(busStopHS);
+        session.delete(busStopVer);
         tx1.commit();
         session.close();
     }
 
-    public static void updateBusStopHS (BusStopHS busStopHS)
+    public static void updateBusStopVer (BusStopVer busStopVer)
     {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
         Transaction tx1 = session.beginTransaction();
-        session.saveOrUpdate(busStopHS);
+        session.saveOrUpdate(busStopVer);
         tx1.commit();
         session.close();
     }

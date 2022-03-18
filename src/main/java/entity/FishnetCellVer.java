@@ -1,6 +1,5 @@
 package entity;
 
-import com.vladmihalcea.hibernate.type.basic.PostgreSQLHStoreType;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +30,7 @@ import java.util.Objects;
 //@TypeDef(name = "hstore", typeClass = PostgreSQLHStoreType.class)
 @TypeDef(name = "json", typeClass = JsonType.class)
 
-public class FishnetCellHS implements Serializable {
+public class FishnetCellVer implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @Column(name = "cell_id", nullable = false)
@@ -74,7 +73,7 @@ public class FishnetCellHS implements Serializable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
-        FishnetCellHS that = (FishnetCellHS) o;
+        FishnetCellVer that = (FishnetCellVer) o;
         return id != 0 && Objects.equals(id, that.id);
     }
 

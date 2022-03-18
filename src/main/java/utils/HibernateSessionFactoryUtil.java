@@ -17,19 +17,12 @@ public class HibernateSessionFactoryUtil {
             try {
                 Configuration configuration = new Configuration().configure();
 
-                configuration.addAnnotatedClass(BusStop.class);
-                configuration.addAnnotatedClass(BusStopHS.class);
+                configuration.addAnnotatedClass(BusStopVer.class);
                 configuration.addAnnotatedClass(FishnetCell.class);
-                configuration.addAnnotatedClass(FishnetCell2.class);
-                configuration.addAnnotatedClass(FishnetCellMatrix.class);
                 configuration.addAnnotatedClass(Metro.class);
-                configuration.addAnnotatedClass(Route.class);
                 configuration.addAnnotatedClass(RouteName.class);
                 configuration.addAnnotatedClass(Version.class);
-                configuration.addAnnotatedClass(FishnetStatic.class);
-                configuration.addAnnotatedClass(FishnetData.class);
-                configuration.addAnnotatedClass(FishnetVersionKey.class);
-                configuration.addAnnotatedClass(FishnetCellHS.class);
+                configuration.addAnnotatedClass(FishnetCellVer.class);
                 configuration.addAnnotatedClass(Trip.class);
 
                 StandardServiceRegistryBuilder builder = new StandardServiceRegistryBuilder()
@@ -37,7 +30,7 @@ public class HibernateSessionFactoryUtil {
                 sessionFactory = configuration.buildSessionFactory(builder.build());
 
             } catch (Exception e) {
-                System.out.println("Исключение!" + e);
+                System.out.println("Исключение!  " + e);
             }
         }
         return sessionFactory;
