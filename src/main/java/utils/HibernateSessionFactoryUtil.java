@@ -24,6 +24,9 @@ public class HibernateSessionFactoryUtil {
                 configuration.addAnnotatedClass(Version.class);
                 configuration.addAnnotatedClass(FishnetCellVer.class);
                 configuration.addAnnotatedClass(Trip.class);
+                configuration.addAnnotatedClass(Admstrip.class);
+                configuration.addAnnotatedClass(Admzone.class);
+                configuration.addAnnotatedClass(Trzone.class);
 
                 StandardServiceRegistryBuilder builder = new StandardServiceRegistryBuilder()
                         .applySettings(configuration.getProperties());
