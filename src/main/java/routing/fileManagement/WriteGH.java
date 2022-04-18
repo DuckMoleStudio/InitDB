@@ -14,7 +14,8 @@ public class WriteGH {
         {
             for (Itinerary iii : rr.getItineraries())
             {
-                String url = "https://graphhopper.com/maps/?";
+                String url = "\nhttps://graphhopper.com/maps/?";
+                String rid = "route #"+iii.getId()+" "+iii.getName();
                 for(WayPoint wp: iii.getWayPointList())
                 {
                     url+="point=";
@@ -25,6 +26,7 @@ public class WriteGH {
                 }
                 url+="locale=ru-RU&profile=car&use_miles=false";
 
+                writer.write(rid);
                 writer.write(url);
                 writer.write("\n\n");
             }

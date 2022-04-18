@@ -2,6 +2,7 @@ package routing.entity.result;
 
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -16,7 +17,7 @@ import java.util.List;
 public class Result {
 
     private String methodUsed;
-    private List<Itinerary> itineraries;
+    private List<Itinerary> itineraries = new ArrayList<>();
     private double distanceTotal;
     private double timeTotal;
     private int itineraryQty;

@@ -4,6 +4,7 @@ import lombok.*;
 import routing.entity.WayPoint;
 
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -19,8 +20,8 @@ public class Itinerary {
 
     private int id;
     private String name;
-    private List<WayPoint> wayPointList;
-    private List<LocalTime> arrivals;
+    private List<WayPoint> wayPointList = new ArrayList<>();
+    private List<LocalTime> arrivals = new ArrayList<>();
     private LocalTime timeStart, timeEnd;
     private double distance;
     private double time;

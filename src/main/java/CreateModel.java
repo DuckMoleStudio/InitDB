@@ -7,9 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 import static service.TripService.listTrips;
-import static service.VersionService.getVersionById;
-import static service.VersionService.updateVersion;
 import static loader.Calculation.*;
+import static service.VersionService.*;
 
 public class CreateModel {
     public static void main(String[] args) {
@@ -62,12 +61,13 @@ public class CreateModel {
 */
 
 
-
-        Version version = getVersionById(5);
-        version.setDesc("Новый профиль для НГПТ в маршрутизации");
-        version.setDate(Date.valueOf("2022-3-18"));
+/*
+        Version version = getVersionById(6);
+        //version.setDesc("Новый профиль для НГПТ в маршрутизации");
+        version.setDate(Date.valueOf("2022-4-04"));
         updateVersion(version);
 
+ */
 
         // LOADING
 
@@ -82,8 +82,8 @@ public class CreateModel {
 
         //CalcTripHopsVer(speedRatio, StopDelay, osmFile, dir);
         //CalcStopMinDistToMetroVer();
-        //CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, 5);
-        //CalcCellMinDistToStopHS(5);
-        //CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, 5);
+        //CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, 6);
+        CalcCellMinDistToStopHS(6);
+        CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, 6);
     }
 }

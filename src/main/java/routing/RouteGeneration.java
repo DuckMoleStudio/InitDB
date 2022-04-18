@@ -2,6 +2,9 @@ package routing;
 
 import entity.Version;
 import routing.entity.WayPoint;
+import routing.entity.eval.KPIs;
+import routing.entity.eval.V00params;
+import routing.entity.result.Itinerary;
 import routing.entity.result.Result;
 import routing.entity.storage.MatrixLineMap;
 import routing.fileManagement.LoadMatrixB;
@@ -10,11 +13,10 @@ import routing.service.greedyAlgos.LinkV00;
 
 import java.sql.Date;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+import static java.lang.Math.round;
+import static routing.service.Evaluate.eval;
 import static routing.service.ExportDB.ExportRoutes;
 import static service.VersionService.getVersionById;
 import static service.VersionService.updateVersion;
@@ -23,8 +25,8 @@ public class RouteGeneration {
     public static void main(String[] args) {
 
         // ----- CONTROLS (set before use) -----------
-        String jsonInputFile = "C:\\matrix\\data\\zao1_mtrx.json";
-        String binInputFile = "C:\\matrix\\data\\zao1_mtrx.bin";
+        String jsonInputFile = "C:\\matrix\\data\\zao2_mtrx.json";
+        String binInputFile = "C:\\matrix\\data\\zao2_mtrx.bin";
 
         //OSM data
         String osmFile = "C:/matrix/RU-MOW.osm.pbf";
@@ -37,8 +39,9 @@ public class RouteGeneration {
         boolean isGood = false; // with access from R curbside, for GPX. True for "good" files, false for rest
         int capacity = 50;
         int iterations = 200; // these 2 for jsprit algo
+        boolean single = true;
 
-        String urlOutputFile = "C:\\matrix\\data\\out\\zao.txt";
+        String urlOutputFile = "C:\\matrix\\data\\out\\zao2.txt";
         String arrOutputFile = "C:\\Users\\User\\Documents\\GD\\a2.txt";
         String outDir = "C:\\Users\\User\\Documents\\GD\\tracks\\a3";
         // ----- CONTROLS END ---------
@@ -58,18 +61,82 @@ public class RouteGeneration {
 
         // ------- RUN ALGO -------
 
-            Result rr = new Result();
-            switch(algo)
-            {
-                case "V00": rr = LinkV00.Calculate(wayPointList, matrix); break;
-                  }
+        long elTime = System.currentTimeMillis();
+        Result rr = new Result();
 
 
-        // ----- SAVE RESULTS FOR VISUALISATION ------
+        if(single)
+        {
+            V00params params = new V00params(8, 14, 5);
+            switch (algo) {
+                case "V00":
+                    rr = LinkV00.Calculate(wayPointList, matrix, params);
+                    break;
+            }
+
+/*
+        for(Itinerary it: rr.getItineraries())
+            System.out.println(it.getId()+" "+it.getName());
+
+ */
+            long elapsedTime = System.currentTimeMillis() - elTime;
+        //System.out.println("\n\nTotal time: " + round(rr.getTimeTotal()) / 60000 + " min");
+        //System.out.println("Total distance: " + round(rr.getDistanceTotal()) / 1000 + " km");
+        //System.out.println("Routes: " + rr.getItineraryQty());
+        System.out.println("\nCalculated in: " + elapsedTime/1000 + " s\n");
 
             WriteGH.write(rr, urlOutputFile);
-            //WriteGPX.write(osmFile, dir, outDir, rr, isGood);
-            //WriteArrivals.write(rr, arrOutputFile);
+
+
+        }
+        else {
+            TreeMap<KPIs, V00params> resultMap = new TreeMap<>(new KPIcomparator());
+
+            V00params params;
+
+            for (int i = 8; i < 10; i++)
+                for (int j = 12; j < 14; j++)
+                    for (int k = 4; k < 6; k++) {
+
+                        params = new V00params(i, j, k);
+                        switch (algo) {
+                            case "V00":
+                                rr = LinkV00.Calculate(wayPointList, matrix, params);
+                                break;
+                        }
+
+
+
+
+                        // ----- SAVE RESULTS FOR VISUALISATION ------
+
+                        //WriteGH.write(rr, urlOutputFile);
+                        //WriteGPX.write(osmFile, dir, outDir, rr, isGood);
+                        //WriteArrivals.write(rr, arrOutputFile);
+
+                        // ----- EVALUATE ---------
+
+                        KPIs kpis = eval(rr, matrix);
+                        resultMap.put(kpis, params);
+
+                    }
+
+            for (Map.Entry<KPIs, V00params> me : resultMap.entrySet()) {
+                System.out.printf("\n\nFor params %d - %d r: %d",
+                        me.getValue().getMinDistance(),
+                        me.getValue().getMaxDistance(),
+                        me.getValue().getSiteRadius());
+                System.out.println("\nKPI #1: " + me.getKey().getCellToStop());
+                System.out.println("KPI #2: " + me.getKey().getCellToMetroSimple());
+                System.out.println("KPI #3: " + me.getKey().getCellToMetroFull());
+                System.out.println(me.getKey().getRouteCount() + " trips");
+                System.out.println(me.getKey().getStopCount() + " stops used");
+                System.out.println("total distance: " + me.getKey().getTotalDistance() / 1000);
+            }
+
+            long elapsedTime = System.currentTimeMillis() - elTime;
+            System.out.printf("\n%d variants calculated in: %d seconds", resultMap.size(), elapsedTime / 1000);
+        }
 
         // ----- SAVE TO MODEL IN POSTGRES -----
 
@@ -78,8 +145,18 @@ public class RouteGeneration {
         version.setDate(Date.valueOf("2022-3-26"));
         updateVersion(version);
                */
-        ExportRoutes(6,rr,matrix,osmFile,dir);
+        //ExportRoutes(6,rr,matrix,osmFile,dir);
 
         }
 
+
+}
+
+class KPIcomparator implements Comparator<KPIs>
+{
+    @Override
+    public int compare(KPIs o1, KPIs o2) {
+        int diff = (int) (o1.getCellToMetroSimple()-o2.getCellToMetroSimple());
+        return diff == 0? (int) (o1.getTotalDistance() - o2.getTotalDistance()) : diff;
+    }
 }

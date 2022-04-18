@@ -285,7 +285,7 @@ public class Calculation {
         for(FishnetCellVer cell: cells)
         {
             Query query = session.createQuery(
-                    "select p.active, distance(transform(p.geom,98568), transform(:cell,98568)) as d from BusStopHS p " +
+                    "select p.active, distance(transform(p.geom,98568), transform(:cell,98568)) as d from BusStopVer p " +
                             "where dwithin(p.geom, :cell, 0.03) = true " +
                             "order by distance(transform(p.geom,98568), transform(:cell,98568))");
             query.setParameter("cell", gf.createPoint(getCentroid(cell.getGeom())));
@@ -362,7 +362,7 @@ public class Calculation {
         {
             Query query = session.createQuery(
                     "select p.tripSimple, p.tripFull, p.nearestMetro, p.active, " +
-                            "distance(transform(p.geom,98568), transform(:cell,98568)) from BusStopHS p " +
+                            "distance(transform(p.geom,98568), transform(:cell,98568)) from BusStopVer p " +
                             "where dwithin(transform(p.geom,98568), transform(:cell,98568), :radius) = true");
             query.setParameter("cell", gf.createPoint(getCentroid(cell.getGeom())));
             query.setParameter("radius", Radius);
