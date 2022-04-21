@@ -51,7 +51,7 @@ public class NGPTFlagEncoder extends AbstractFlagEncoder {
         restrictedValues.add("delivery");
         restrictedValues.add("military");
         restrictedValues.add("emergency");
-        //restrictedValues.add("private");
+        restrictedValues.add("private");
 
         blockPrivate(properties.getBool("block_private", true));
         blockFords(properties.getBool("block_fords", false));

@@ -41,7 +41,7 @@ public class RouteGeneration {
         int iterations = 200; // these 2 for jsprit algo
         boolean single = true;
 
-        String urlOutputFile = "C:\\matrix\\data\\out\\zao2.txt";
+        String urlOutputFile = "C:\\matrix\\data\\out\\zao3.txt";
         String arrOutputFile = "C:\\Users\\User\\Documents\\GD\\a2.txt";
         String outDir = "C:\\Users\\User\\Documents\\GD\\tracks\\a3";
         // ----- CONTROLS END ---------
@@ -67,7 +67,7 @@ public class RouteGeneration {
 
         if(single)
         {
-            V00params params = new V00params(8, 14, 5);
+            V00params params = new V00params(8, 14, 5, 3, 3, 100, true);
             switch (algo) {
                 case "V00":
                     rr = LinkV00.Calculate(wayPointList, matrix, params);
@@ -94,11 +94,14 @@ public class RouteGeneration {
 
             V00params params;
 
-            for (int i = 8; i < 10; i++)
-                for (int j = 12; j < 14; j++)
-                    for (int k = 4; k < 6; k++) {
+            for (int i = 6; i < 9; i++)
+                for (int j = 9; j < 15; j++)
+                    for (int k = 3; k < 6; k++)
+                        for (int l = 1; l < 5; l++)
+                            for (int m = 1; m < 5; m++)
+                        {
 
-                        params = new V00params(i, j, k);
+                        params = new V00params(i, j, k, l,m,100,false);
                         switch (algo) {
                             case "V00":
                                 rr = LinkV00.Calculate(wayPointList, matrix, params);
@@ -122,10 +125,13 @@ public class RouteGeneration {
                     }
 
             for (Map.Entry<KPIs, V00params> me : resultMap.entrySet()) {
-                System.out.printf("\n\nFor params %d - %d r: %d",
+                System.out.printf("\n\nFor params %d - %d radius: %d add: %d remove: %d",
                         me.getValue().getMinDistance(),
                         me.getValue().getMaxDistance(),
-                        me.getValue().getSiteRadius());
+                        me.getValue().getSiteRadius(),
+                        me.getValue().getAddNoLessNewStops(),
+                        me.getValue().getRemoveWithLessUnique()
+                        );
                 System.out.println("\nKPI #1: " + me.getKey().getCellToStop());
                 System.out.println("KPI #2: " + me.getKey().getCellToMetroSimple());
                 System.out.println("KPI #3: " + me.getKey().getCellToMetroFull());
@@ -157,6 +163,6 @@ class KPIcomparator implements Comparator<KPIs>
     @Override
     public int compare(KPIs o1, KPIs o2) {
         int diff = (int) (o1.getCellToMetroSimple()-o2.getCellToMetroSimple());
-        return diff == 0? (int) (o1.getTotalDistance() - o2.getTotalDistance()) : diff;
+        return Math.abs(diff) < 3? (int) (o2.getTotalDistance() - o1.getTotalDistance()) : diff;
     }
 }

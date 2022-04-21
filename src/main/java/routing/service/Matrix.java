@@ -87,9 +87,10 @@ public class Matrix {
                             if(curbs)
                             {
                                 req.setCurbsides(Arrays.asList("right", "right"));
-                                //req.putHint("u_turn_costs", 6000);
+                                req.putHint("u_turn_costs", 6000);
                             }
 
+                            req.setSnapPreventions(Arrays.asList("bridge", "tunnel"));
                             req.putHint("instructions", false);
                             req.putHint("calc_points", false);
                             req.putHint(Parameters.Routing.FORCE_CURBSIDE, false);

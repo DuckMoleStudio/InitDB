@@ -6,15 +6,13 @@ import routing.entity.eval.KPIs;
 import routing.entity.eval.V00params;
 import routing.entity.result.Itinerary;
 import routing.entity.result.Result;
+import routing.entity.result.TrackList;
 import routing.entity.storage.Hop;
-import routing.entity.storage.MatrixElement;
 import routing.entity.storage.MatrixLineMap;
 import routing.entity.storage.TimeDistancePair;
 
-import java.time.LocalTime;
 import java.util.*;
 
-import static java.lang.Math.round;
 import static routing.service.Evaluate.eval;
 import static routing.service.Matrix.*;
 
@@ -38,18 +36,22 @@ public class LinkV00 {
 
         int discardCount = 0;
         List<Hop> routes = new ArrayList<>(); // index is route number
-
         List<Hop> links = new ArrayList<>();
+        List<WayPoint> terminals = new ArrayList<>();
+        Map<Hop, TrackList> trips = new HashMap<>();
 
         // GET TERMINALS
         Map<WayPoint,List<WayPoint>> plan = new HashMap<>();
         for(WayPoint wp: wayPoints)
             if(wp.getType()==WayPointType.METRO_TERMINAL||wp.getType()==WayPointType.TERMINAL)
-            plan.put(wp,new ArrayList<>());
+            {
+                terminals.add(wp);
+                plan.put(wp, new ArrayList<>());
+            }
 
         // CREATE LINKS
-        for(WayPoint wp1: plan.keySet())
-            for(WayPoint wp2: plan.keySet())
+        for(WayPoint wp1: terminals)
+            for(WayPoint wp2: terminals)
             {
                 double t = TimeBetweenMap(wp1,wp2,matrix)/60000;
                 boolean distanceGood = t>params.getMinDistance()&&t<params.getMaxDistance();
@@ -75,11 +77,9 @@ public class LinkV00 {
             }
 
 
-        for(WayPoint w1: plan.keySet())
+        for(WayPoint w1: terminals)
             for(WayPoint w2: plan.get(w1))
                 links.add(new Hop(w1,w2));
-
-        //System.out.printf("\nFor %d links:\n",links.size());
 
         // FILL WITH STOPS
 
@@ -98,11 +98,16 @@ public class LinkV00 {
             itinerary.setTime(0);
 
             if(routes.contains(reverseLink))
-                itinerary.setId(routes.indexOf(reverseLink)); // if we have reverse, use its number
+            {
+                itinerary.setId(routes.indexOf(reverseLink)+1); // if we have reverse, use its number
+                trips.get(link).getReverse().add(itinerary);
+            }
             else
             {
                 routes.add(link);
-                itinerary.setId(routes.indexOf(link)); // new number
+                itinerary.setId(routes.indexOf(link)+1); // new number
+                trips.put(link,new TrackList());
+                trips.get(link).getForward().add(itinerary);
             }
 
             visitCount.put(link.getFrom(),visitCount.get(link.getFrom())+1);
@@ -116,18 +121,12 @@ public class LinkV00 {
 
         result.setItineraryQty(links.size());
 
-        KPIs kpis = eval(result, matrix);
-
-        System.out.println("BEFORE:\n");
-        System.out.println("KPI #1: " + kpis.getCellToStop());
-        System.out.println("KPI #2: " + kpis.getCellToMetroSimple());
-        System.out.println("KPI #3: " + kpis.getCellToMetroFull());
-        System.out.println(kpis.getRouteCount() + " trips");
-        System.out.println(kpis.getStopCount() + " stops used");
-        System.out.println("total distance: " + kpis.getTotalDistance() / 1000);
+        if(params.isLog())
+        printKPI(eval(result, matrix), "BEFORE:");
 
         // GET UNUSED & MAP TO LINKS
-        Map<Hop,List<WayPoint>> unused = new HashMap<>();
+        Map<Hop,List<WayPoint>> unusedMap = new HashMap<>();
+        List<Hop> reused = new ArrayList<>();
         for(WayPoint wp: wayPoints)
             if(visitCount.get(wp)==0)
             {
@@ -145,22 +144,21 @@ public class LinkV00 {
                         nearestHop = link;
                     }
                 }
-                if(unused.containsKey(nearestHop))
-                    unused.get(nearestHop).add(wp);
+                if(unusedMap.containsKey(nearestHop))
+                    unusedMap.get(nearestHop).add(wp);
                 else
-                    unused.put(nearestHop,new ArrayList<>(List.of(wp)));
+                {
+                    reused.add(nearestHop);
+                    unusedMap.put(nearestHop, new ArrayList<>(List.of(wp)));
+                }
             }
-
-for(Hop h: routes)
-    if(unused.containsKey(h))
-    System.out.printf("# %d ----> %d unused stops\n",routes.indexOf(h),unused.get(h).size());
-
 
 
 
         // BUILD WITH UNUSED
 
-        for(Hop link: unused.keySet())
+        for(Hop link: reused)
+        for(WayPoint wp: unusedMap.get(link))
         {
             Hop reverseLink = new Hop(link.getTo(),link.getFrom()); // reverse link
             // Itinerary init
@@ -168,60 +166,50 @@ for(Hop h: routes)
             itinerary.setName(link.getFrom().getDescription()+" - "+link.getTo().getDescription());
 
             itinerary.getWayPointList().add(link.getFrom());
-
-
-            itinerary.setDistance(0);
-            itinerary.setTime(0);
-
-            if(routes.contains(link))
-                itinerary.setId(routes.indexOf(link)*10+1);
-            else
-                itinerary.setId(routes.indexOf(reverseLink)*10+1);
-
-            visitCount.put(link.getFrom(),visitCount.get(link.getFrom())+1);
-            visitCount.put(link.getTo(),visitCount.get(link.getTo())+1);
-
-            // very simple greedy fill
-            List<WayPoint> wpList = new ArrayList<>(unused.get(link));
-            WayPoint curWP = link.getFrom();
-            while (!wpList.isEmpty())
-            {
-                MatrixElement me = NearestMap(curWP, matrix, wpList);
-                WayPoint tryWP = me.getWayPoint();
-
-                // visit this WP
-                visitCount.put(tryWP,visitCount.get(tryWP)+1);
-                itinerary.getWayPointList().add(tryWP);
-                itinerary.setDistance(itinerary.getDistance() + me.getDistance());
-                itinerary.setTime(itinerary.getTime() + me.getTime());
-
-                curWP = tryWP;
-                wpList.remove(tryWP);
-            }
-
+            itinerary.getWayPointList().add(wp);
             itinerary.getWayPointList().add(link.getTo());
 
-            // now fill it
-            //FillLink(itinerary,1.01,false,0);
+            itinerary.setDistance(DistanceBetweenMap(link.getFrom(),wp,matrix)+
+                    DistanceBetweenMap(wp,link.getTo(),matrix));
+            itinerary.setTime(TimeBetweenMap(link.getFrom(),wp,matrix)+
+                    TimeBetweenMap(wp,link.getTo(),matrix));
 
-            result.getItineraries().add(itinerary);
-            result.setDistanceTotal(result.getDistanceTotal() + itinerary.getDistance());
-            result.setTimeTotal(result.getTimeTotal() + itinerary.getTime());
 
-            result.setItineraryQty(result.getItineraryQty()+1);
+            visitCount.put(link.getFrom(),visitCount.get(link.getFrom())+1);
+            visitCount.put(wp,visitCount.get(wp)+1);
+            visitCount.put(link.getTo(),visitCount.get(link.getTo())+1);
+
+            FillLink(itinerary,50,true,0);
+
+            if(itinerary.getWayPointList().size()>(params.getAddNoLessNewStops()+2)) // control parameter, +2 terminals
+            {
+                FillLink(itinerary,50,false,0);
+                if(routes.contains(link))
+                {
+                    itinerary.setId(routes.indexOf(link) * 1000 + 1);
+                    trips.get(link).getForward().add(itinerary);
+                }
+                else
+                {
+                    itinerary.setId(routes.indexOf(reverseLink) * 1000 + 1);
+                    trips.get(link).getReverse().add(itinerary);
+                }
+                result.getItineraries().add(itinerary);
+                result.setDistanceTotal(result.getDistanceTotal() + itinerary.getDistance());
+                result.setTimeTotal(result.getTimeTotal() + itinerary.getTime());
+                result.setItineraryQty(result.getItineraryQty() + 1);
+            }
+            else
+                for(WayPoint w: itinerary.getWayPointList())
+                    visitCount.put(w,visitCount.get(w)-1);
         }
 
-        kpis = eval(result, matrix);
+        if(params.isLog())
+        printKPI(eval(result, matrix), "WITH UNUSED:");
 
-        System.out.println("\nWITH UNUSED:\n");
-        System.out.println("KPI #1: " + kpis.getCellToStop());
-        System.out.println("KPI #2: " + kpis.getCellToMetroSimple());
-        System.out.println("KPI #3: " + kpis.getCellToMetroFull());
-        System.out.println(kpis.getRouteCount() + " trips");
-        System.out.println(kpis.getStopCount() + " stops used");
-        System.out.println("total distance: " + kpis.getTotalDistance() / 1000);
 
         // DISCARD REDUNDANT
+
 
         for(Itinerary it: new ArrayList<>(result.getItineraries()))
         {
@@ -231,7 +219,7 @@ for(Hop h: routes)
 
            // System.out.printf("total: %d ----> unique: %d\n", it.getWayPointList().size(),redCount);
 
-            if(redCount<1) // control parameter
+            if(redCount<params.getRemoveWithLessUnique()) // control parameter
             {
                 for(WayPoint wp: it.getWayPointList())
                     visitCount.put(wp,visitCount.get(wp)-1);
@@ -241,22 +229,34 @@ for(Hop h: routes)
                 result.setItineraryQty(result.getItineraryQty()-1);
                 discardCount++;
 
-                System.out.println("-- "+it.getId());
+                //System.out.println("-- "+it.getId());
             }
         }
 
-        System.out.println("\nDiscarded: "+discardCount);
+        //System.out.println("\nDiscarded: "+discardCount);
 
-        kpis = eval(result, matrix);
+        if(params.isLog())
+        printKPI(eval(result, matrix), "AFTER DISCARDING:");
 
-        System.out.println("\nAFTER DISCARDING:\n");
-        System.out.println("KPI #1: " + kpis.getCellToStop());
-        System.out.println("KPI #2: " + kpis.getCellToMetroSimple());
-        System.out.println("KPI #3: " + kpis.getCellToMetroFull());
-        System.out.println(kpis.getRouteCount() + " trips");
-        System.out.println(kpis.getStopCount() + " stops used");
-        System.out.println("total distance: " + kpis.getTotalDistance() / 1000);
 
+        // REMOVE CLOSE STOPS
+
+        for(Itinerary it: result.getItineraries())
+        {
+            List<WayPoint> toCleanse = new ArrayList<>();
+            List<WayPoint> stops = it.getWayPointList();
+            for (int i = 0; i < stops.size()-1; i++)
+            {
+                if(DistanceBetweenMap(stops.get(i),stops.get(i+1),matrix)<params.getMinDistanceBetweenStops())
+                    if (i!=0) toCleanse.add(stops.get(i));
+                else toCleanse.add(stops.get(i+1));
+            }
+            for(WayPoint w: toCleanse)
+                stops.remove(w);
+        }
+
+        if(params.isLog())
+        printKPI(eval(result, matrix), "AFTER CLEANSING:");
 
 
         return result;
@@ -335,5 +335,15 @@ for(Hop h: routes)
         itinerary.setTime(totalTime);
     }
 
+public static void printKPI(KPIs kpis, String message)
+{
+    System.out.printf("\n%s\n\n",message);
+    System.out.println("KPI #1: " + kpis.getCellToStop());
+    System.out.println("KPI #2: " + kpis.getCellToMetroSimple());
+    System.out.println("KPI #3: " + kpis.getCellToMetroFull());
+    System.out.println(kpis.getRouteCount() + " trips");
+    System.out.println(kpis.getStopCount() + " stops used");
+    System.out.println("total distance: " + kpis.getTotalDistance() / 1000);
+}
 
     }

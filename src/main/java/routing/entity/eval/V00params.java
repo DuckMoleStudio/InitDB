@@ -13,4 +13,8 @@ public class V00params {
     int minDistance;
     int maxDistance;
     int siteRadius;
+    int addNoLessNewStops;
+    int removeWithLessUnique;
+    int minDistanceBetweenStops;
+    boolean log;
 }
