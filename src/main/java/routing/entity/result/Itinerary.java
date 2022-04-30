@@ -19,6 +19,8 @@ import java.util.List;
 public class Itinerary {
 
     private int id;
+    private int dir;
+    private  int route;
     private String name;
     private List<WayPoint> wayPointList = new ArrayList<>();
     private List<LocalTime> arrivals = new ArrayList<>();

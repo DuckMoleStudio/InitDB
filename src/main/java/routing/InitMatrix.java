@@ -27,8 +27,8 @@ public class InitMatrix {
         String osmFile = "C:/matrix/RU-MOW.osm.pbf";
         String dir = "local/graphhopper";
 
-        String jsonOutputFile = "C:\\matrix\\data\\zao2_mtrx.json";
-        String binOutputFile = "C:\\matrix\\data\\zao2_mtrx.bin";
+        String jsonOutputFile = "C:\\matrix\\data\\zao3_mtrx.json";
+        String binOutputFile = "C:\\matrix\\data\\zao3_mtrx.bin";
 
         LocalTime startTime = LocalTime.parse("06:00");
         boolean runAlgo = false; // execute itinerary routing algo at this stage?
@@ -56,7 +56,7 @@ public class InitMatrix {
         //2. filter active by version, map to wp and set type
         for(BusStopVer stop: allStops)
         {
-            if(stop.getActive().get(version))
+            if(stop.getActive().get(version)||true)
             {
                 WayPoint wp = new WayPoint();
                 wp.setDescription(stop.getName());

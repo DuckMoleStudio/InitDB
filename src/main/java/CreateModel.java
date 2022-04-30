@@ -82,8 +82,8 @@ public class CreateModel {
 
         //CalcTripHopsVer(speedRatio, StopDelay, osmFile, dir);
         //CalcStopMinDistToMetroVer();
-        //CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, 6);
-        CalcCellMinDistToStopHS(6);
-        CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, 6);
+        CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, 16);
+        CalcCellMinDistToStopHS(16, true, 6);
+        CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dir, speedRatio, SnapDistance, 16, true, 6);
     }
 }

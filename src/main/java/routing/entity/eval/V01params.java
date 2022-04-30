@@ -9,11 +9,8 @@ import lombok.*;
 @AllArgsConstructor
 @ToString
 
-public class V00params {
-    int minDistance;
-    int maxDistance;
+public class V01params {
     int siteRadius;
-    int addNoLessNewStops;
     int removeWithLessUnique;
     int minDistanceBetweenStops;
     boolean log;

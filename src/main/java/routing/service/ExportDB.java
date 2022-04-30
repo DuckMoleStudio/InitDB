@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static loader.Calculation.*;
 import static routing.service.Matrix.DistanceBetweenMap;
 import static routing.service.Matrix.TimeBetweenMap;
 import static service.RouteNameService.updateRouteName;
@@ -38,6 +39,15 @@ public class ExportDB {
                                     String osmFile,
                                     String dirGH)
     {
+        final int MetroCriteria = 150; // meters, if stop is within, then it's a metro stop
+        final int StopDelay = 30; // sec, time loss for stopping
+        final int PedestrianSpeed = 1; // in m/s, 1 equals 3.6 km/h but we have air distances so ok
+        final int IntervalDummy = 600; // in case not available
+        final int Radius = 500; // meters, looking for stops in this radius
+        final double speedRatio = 2.0;
+        final int RadiusMetro = 6000; // meters, looking for metro in this radius
+        final int SnapDistance = 500; // no road radius
+
         int countRoutes=0;
         int countTrips=0;
         long startTime = System.currentTimeMillis();
@@ -46,28 +56,27 @@ public class ExportDB {
 
         for(Itinerary it: result.getItineraries())
         {
-            int dir = 1;
-            if(!routes.containsKey(it.getId()))
+
+            if(!routes.containsKey(it.getRoute()))
             {
                 RouteName route = new RouteName();
-                route.setShortName("M-"+it.getId());
+                route.setShortName("M-"+it.getRoute());
                 route.setLongName(it.getName());
-                route.setId(versionId*100000+it.getId());
+                route.setId(versionId*100000+it.getRoute());
                 route.getTrips().put(versionId,new ArrayList<>());
-                routes.put(it.getId(),route);
+                routes.put(it.getRoute(),route);
                 countRoutes++;
-                dir=0;
             }
 
-            RouteName route = routes.get(it.getId());
+            RouteName route = routes.get(it.getRoute());
             Trip trip = new Trip();
-            trip.setId(versionId*1000000+it.getId()*10+dir);
+            trip.setId(versionId*10000000+it.getRoute()*1000+it.getId()*10+it.getDir());
             route.getTrips().get(versionId).add(trip.getId());
-            trip.setDir(String.valueOf(dir));
+            trip.setDir(String.valueOf(it.getDir()));
             trip.setRid(String.valueOf(route.getId()));
             trip.setVersions(new HashMap<>()); // we assume it will exist in this version only!
             trip.getVersions().put(versionId,true);
-            trip.setInterval(900);
+            trip.setInterval(IntervalDummy);
 
             // stops
             List<String> stops = new ArrayList<>();
@@ -82,7 +91,7 @@ public class ExportDB {
             double[] hops = new double[wps.size()-1];
             for (int i = 0; i < wps.size()-1; i++)
             {
-                double hop = TimeBetweenMap(wps.get(i), wps.get(i+1),matrix)/1000;
+                double hop = (TimeBetweenMap(wps.get(i), wps.get(i+1),matrix)/1000)*speedRatio;
                 totalTime+=hop;
                 totalDistance+=DistanceBetweenMap(wps.get(i), wps.get(i+1),matrix);
                 hops[i]=hop;
@@ -161,5 +170,9 @@ public class ExportDB {
 
         System.out.printf("\n\n===== Exported %d routes & %d trips in %d seconds ======\n\n"
                 , countRoutes, countTrips, (System.currentTimeMillis()-startTime)/1000);
+
+        CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, versionId);
+        CalcCellMinDistToStopHS(versionId,true,6);
+        CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dirGH, speedRatio, SnapDistance, versionId,true,6);
     }
 }

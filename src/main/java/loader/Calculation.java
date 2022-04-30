@@ -21,6 +21,7 @@ import utils.HibernateSessionFactoryUtil;
 import java.util.*;
 
 import static org.locationtech.jts.algorithm.Centroid.getCentroid;
+import static service.AdmzoneService.getAdmzoneById;
 import static service.BusStopVerService.*;
 import static service.FishnetCellVerService.listFishnetCellVers;
 import static service.FishnetCellVerService.updateFishnetCellVer;
@@ -275,16 +276,30 @@ public class Calculation {
     }
 
 
-    public static void CalcCellMinDistToStopHS(int versionId) {
+    public static void CalcCellMinDistToStopHS(int versionId, boolean filter, int areaId) {
 
         long startTime = System.currentTimeMillis();
         GeometryFactory gf = new GeometryFactory(new PrecisionModel(),4326);
 
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
-        List<FishnetCellVer> cells = listFishnetCellVers();
+
+        Query query;
+        List<FishnetCellVer> cells;
+        if(filter)
+        {
+            query = session.createQuery(
+                    "select p from FishnetCellVer p " +
+                            "where intersects(p.geom, :area) = true ", FishnetCellVer.class);
+            query.setParameter("area", getAdmzoneById(areaId).getGeom());
+            cells = query.getResultList();
+        }
+        else
+        cells = listFishnetCellVers();
+
+
         for(FishnetCellVer cell: cells)
         {
-            Query query = session.createQuery(
+            query = session.createQuery(
                     "select p.active, distance(transform(p.geom,98568), transform(:cell,98568)) as d from BusStopVer p " +
                             "where dwithin(p.geom, :cell, 0.03) = true " +
                             "order by distance(transform(p.geom,98568), transform(:cell,98568))");
@@ -324,13 +339,27 @@ public class Calculation {
                                         String dir,
                                         double speedRatio,
                                         int SnapDistance,
-                                          int versionId)
+                                          int versionId,
+                                          boolean filter,
+                                          int areaId)
     {
         long startTime = System.currentTimeMillis();
         GeometryFactory gf = new GeometryFactory(new PrecisionModel(),4326);
 
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
-        List<FishnetCellVer> cells = listFishnetCellVers();
+
+        Query query;
+        List<FishnetCellVer> cells;
+        if(filter)
+        {
+            query = session.createQuery(
+                    "select p from FishnetCellVer p " +
+                            "where intersects(p.geom, :area) = true ", FishnetCellVer.class);
+            query.setParameter("area", getAdmzoneById(areaId).getGeom());
+            cells = query.getResultList();
+        }
+        else
+            cells = listFishnetCellVers();
 
         // GH preparation
         GraphHopper hopper = new GraphHopper();
@@ -360,7 +389,7 @@ public class Calculation {
 
         for(FishnetCellVer cell: cells)
         {
-            Query query = session.createQuery(
+            query = session.createQuery(
                     "select p.tripSimple, p.tripFull, p.nearestMetro, p.active, " +
                             "distance(transform(p.geom,98568), transform(:cell,98568)) from BusStopVer p " +
                             "where dwithin(transform(p.geom,98568), transform(:cell,98568), :radius) = true");

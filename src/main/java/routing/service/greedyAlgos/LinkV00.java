@@ -21,6 +21,7 @@ public class LinkV00 {
     public static Map<WayPoint, MatrixLineMap> matrix;
     public static Result result;
     public static Map<WayPoint,Integer> visitCount = new HashMap<>();
+    public static int discardCount;
 
     public static Result Calculate(
             List<WayPoint> wayPoints,
@@ -32,10 +33,12 @@ public class LinkV00 {
             visitCount.put(wp,0);
 
         result = new Result();
-        result.setMethodUsed("Simple Behaviourist Algorithm, linking terminals V.00");
+        result.setMethodUsed("Simple Behaviour Algorithm, linking terminals V.00");
 
-        int discardCount = 0;
+        discardCount = 0;
         List<Hop> routes = new ArrayList<>(); // index is route number
+        Map<Hop, Integer> routeF = new HashMap<>(); // counters for trips
+        Map<Hop, Integer> routeR = new HashMap<>();
         List<Hop> links = new ArrayList<>();
         List<WayPoint> terminals = new ArrayList<>();
         Map<Hop, TrackList> trips = new HashMap<>();
@@ -99,13 +102,19 @@ public class LinkV00 {
 
             if(routes.contains(reverseLink))
             {
-                itinerary.setId(routes.indexOf(reverseLink)+1); // if we have reverse, use its number
-                trips.get(link).getReverse().add(itinerary);
+                itinerary.setRoute(routes.indexOf(reverseLink)+1); // if we have reverse, use its number
+                itinerary.setId(1);
+                routeR.put(reverseLink,1);
+                itinerary.setDir(1);
+                trips.get(reverseLink).getReverse().add(itinerary);
             }
             else
             {
                 routes.add(link);
-                itinerary.setId(routes.indexOf(link)+1); // new number
+                itinerary.setRoute(routes.indexOf(link)+1); // new number
+                itinerary.setId(1);
+                routeF.put(link,1);
+                itinerary.setDir(0);
                 trips.put(link,new TrackList());
                 trips.get(link).getForward().add(itinerary);
             }
@@ -186,13 +195,19 @@ public class LinkV00 {
                 FillLink(itinerary,50,false,0);
                 if(routes.contains(link))
                 {
-                    itinerary.setId(routes.indexOf(link) * 1000 + 1);
+                    itinerary.setRoute(routes.indexOf(link)+1); // forward number
+                    itinerary.setId(routeF.get(link)+1);
+                    routeF.put(link,routeF.get(link)+1);
+                    itinerary.setDir(0);
                     trips.get(link).getForward().add(itinerary);
                 }
                 else
                 {
-                    itinerary.setId(routes.indexOf(reverseLink) * 1000 + 1);
-                    trips.get(link).getReverse().add(itinerary);
+                    itinerary.setRoute(routes.indexOf(reverseLink)+1); // if we have reverse, use its number
+                    itinerary.setId(routeR.get(reverseLink)+1);
+                    routeR.put(reverseLink,routeR.get(reverseLink)+1);
+                    itinerary.setDir(1);
+                    trips.get(reverseLink).getReverse().add(itinerary);
                 }
                 result.getItineraries().add(itinerary);
                 result.setDistanceTotal(result.getDistanceTotal() + itinerary.getDistance());
@@ -210,27 +225,97 @@ public class LinkV00 {
 
         // DISCARD REDUNDANT
 
-
-        for(Itinerary it: new ArrayList<>(result.getItineraries()))
+        for(Hop link: routes)
         {
-            int redCount = 0;
-            for(WayPoint wp: it.getWayPointList())
-                if(visitCount.get(wp)<2) redCount++;
+            int countForward = 0;
+            int countReverse = 0;
+            TreeMap<Integer, List<Itinerary>> forward = new TreeMap<>();
+            TreeMap<Integer, List<Itinerary>> reverse = new TreeMap<>();
 
-           // System.out.printf("total: %d ----> unique: %d\n", it.getWayPointList().size(),redCount);
+            //System.out.printf("Route %d: %d forward, %d reverse ",routes.indexOf(link)+1,trips.get(link).getForward().size(),trips.get(link).getReverse().size());
 
-            if(redCount<params.getRemoveWithLessUnique()) // control parameter
+            for (Itinerary ii : trips.get(link).getForward())
             {
-                for(WayPoint wp: it.getWayPointList())
-                    visitCount.put(wp,visitCount.get(wp)-1);
-                result.getItineraries().remove(it);
-                result.setDistanceTotal(result.getDistanceTotal() - it.getDistance());
-                result.setTimeTotal(result.getTimeTotal() - it.getTime());
-                result.setItineraryQty(result.getItineraryQty()-1);
-                discardCount++;
+                int redCount = 0;
+                for (WayPoint wp : ii.getWayPointList())
+                    if (visitCount.get(wp) < 2) redCount++;
 
-                //System.out.println("-- "+it.getId());
+                if(forward.containsKey(redCount))
+                    forward.get(redCount).add(ii);
+                else
+                    forward.put(redCount, new ArrayList<>(List.of(ii)));
             }
+            for (Itinerary ii : trips.get(link).getReverse()) {
+                int redCount = 0;
+                for (WayPoint wp : ii.getWayPointList())
+                    if (visitCount.get(wp) < 2) redCount++;
+
+                if(reverse.containsKey(redCount))
+                    reverse.get(redCount).add(ii);
+                else
+                    reverse.put(redCount, new ArrayList<>(List.of(ii)));
+            }
+            if (reverse.lastKey() < params.getRemoveWithLessUnique() && forward.lastKey() < params.getRemoveWithLessUnique()) {
+                // remove all
+                for(Map.Entry<Integer,List<Itinerary>> me: forward.entrySet())
+                for(Itinerary iii: me.getValue()) removeItinerary(iii);
+                for(Map.Entry<Integer,List<Itinerary>> me: reverse.entrySet())
+                for(Itinerary iii: me.getValue()) removeItinerary(iii);
+                //System.out.println(" removed all");
+                continue;
+            }
+
+            if(forward.lastKey() < params.getRemoveWithLessUnique() || params.isOnePair())
+            {
+                // remove all forward but last
+                for(Map.Entry<Integer,List<Itinerary>> me: forward.entrySet())
+                    for(Itinerary iii: me.getValue())
+                        if(me.getKey().intValue()==forward.lastKey().intValue())
+                        {
+                            //System.out.print("-");
+                            if(me.getValue().size()>1&&me.getValue().indexOf(iii)!=0)
+                            {removeItinerary(iii); countForward++;
+                                //System.out.print(".");
+                            }
+                        }
+                else {removeItinerary(iii); countForward++;
+                    //System.out.print(":");
+                }
+            }
+            else
+            {
+                // remove all forward by criteria
+                for(Map.Entry<Integer,List<Itinerary>> me: forward.entrySet())
+                    for(Itinerary iii: me.getValue())
+                        if(me.getKey()<params.getRemoveWithLessUnique()) {removeItinerary(iii); countForward++;}
+            }
+
+            if(reverse.lastKey() < params.getRemoveWithLessUnique() || params.isOnePair())
+            {
+                // remove all reverse but last
+                for(Map.Entry<Integer,List<Itinerary>> me: reverse.entrySet())
+                    for(Itinerary iii: me.getValue())
+                        if(me.getKey().intValue()==reverse.lastKey().intValue())
+                        {
+                            //System.out.print("-");
+                            if(me.getValue().size()>1&&me.getValue().indexOf(iii)!=0)
+                            {removeItinerary(iii); countReverse++;
+                                //System.out.print(".");
+                            }
+                        }
+                        else {removeItinerary(iii); countReverse++;
+                            //System.out.print(":");
+                        }
+            }
+            else
+            {
+                // remove all reverse by criteria
+                for(Map.Entry<Integer,List<Itinerary>> me: reverse.entrySet())
+                    for(Itinerary iii: me.getValue())
+                        if(me.getKey()<params.getRemoveWithLessUnique()) {removeItinerary(iii); countReverse++;}
+            }
+
+            //System.out.printf("removed %d - %d\n",countForward,countReverse);
         }
 
         //System.out.println("\nDiscarded: "+discardCount);
@@ -345,5 +430,18 @@ public static void printKPI(KPIs kpis, String message)
     System.out.println(kpis.getStopCount() + " stops used");
     System.out.println("total distance: " + kpis.getTotalDistance() / 1000);
 }
+
+    public static void removeItinerary(Itinerary it)
+    {
+        for(WayPoint wp: it.getWayPointList())
+            visitCount.put(wp,visitCount.get(wp)-1);
+        result.getItineraries().remove(it);
+        result.setDistanceTotal(result.getDistanceTotal() - it.getDistance());
+        result.setTimeTotal(result.getTimeTotal() - it.getTime());
+        result.setItineraryQty(result.getItineraryQty()-1);
+        discardCount++;
+
+        //System.out.println("-- "+it.getId());
+    }
 
     }

@@ -198,6 +198,30 @@ public class Matrix {
         return result;
     }
 
+    public static MatrixElement NearestMapFrom(
+            WayPoint end,
+            Map<WayPoint,MatrixLineMap> matrix,
+            List<WayPoint> existing)
+    {
+        double minTime = Double.POSITIVE_INFINITY;
+        MatrixElement result = new MatrixElement();
+        for(WayPoint wp: existing)
+        {
+            double tryTime = matrix.get(wp).getDistances().get(end).getTime();
+            double tryDistance = matrix.get(wp).getDistances().get(end).getDistance();
+            if (tryTime<minTime)
+            {
+                minTime = tryTime;
+                result.setDistance(tryDistance);
+                result.setTime(tryTime);
+                result.setWayPoint(wp);
+            }
+        }
+
+
+        return result;
+    }
+
 
 
 }
