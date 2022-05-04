@@ -11,6 +11,7 @@ import routing.fileManagement.LoadMatrixB;
 import routing.fileManagement.WriteGH;
 import routing.service.greedyAlgos.LinkV00;
 import routing.service.greedyAlgos.PointV01;
+import routing.service.greedyAlgos.PointV011;
 
 import java.sql.Date;
 import java.time.LocalTime;
@@ -33,7 +34,7 @@ public class RouteGeneration {
         String dir = "local/graphhopper";
 
 
-        String algo = "V01"; // algo to perform
+        String algo = "V011"; // algo to perform
         LocalTime workStart = LocalTime.parse("06:00");
         LocalTime workEnd = LocalTime.parse("22:00");
         boolean isGood = false; // with access from R curbside, for GPX. True for "good" files, false for rest
@@ -82,8 +83,13 @@ public class RouteGeneration {
                     break;
 
                 case "V01":
-                    V01params params01 = new V01params(4,5, 100, true, true);
+                    V01params params01 = new V01params(7,5, 100, true, true, false);
                     rr = PointV01.Calculate(wayPointList, matrix, params01);
+                    break;
+
+                case "V011":
+                    V01params params011 = new V01params(5,3, 100, true, true, false);
+                    rr = PointV011.Calculate(wayPointList, matrix, params011);
                     break;
 
                 default:
@@ -168,10 +174,10 @@ public class RouteGeneration {
 
                     V01params params01;
 
-                    for (int i = 3; i < 9; i++)
+                    for (int i = 1; i < 9; i++)
                         for (int j = 1; j < 6; j++)
                              {
-                                        params01 = new V01params(i, j, 100, false, false);
+                                        params01 = new V01params(i, j, 100, false, true,true);
                                         rr = PointV01.Calculate(wayPointList, matrix, params01);
 
                                         // ----- EVALUATE ---------
@@ -197,6 +203,43 @@ public class RouteGeneration {
                     elapsedTime = System.currentTimeMillis() - elTime;
                     System.out.printf("\n%d variants calculated in: %d seconds", resultMap01.size(), elapsedTime / 1000);
                     break;
+
+                case "V011":
+
+                    TreeMap<KPIs, V01params> resultMap011 = new TreeMap<>(new KPIcomparator());
+
+                    V01params params011;
+
+                    for (int i = 1; i < 10; i++)
+                        for (int j = 1; j < 6; j++)
+                        {
+                            params011 = new V01params(i, j, 100, false, true,true);
+                            rr = PointV011.Calculate(wayPointList, matrix, params011);
+
+                            // ----- EVALUATE ---------
+
+                            KPIs kpis = eval(rr, matrix);
+                            resultMap011.put(kpis, params011);
+                        }
+
+                    for (Map.Entry<KPIs, V01params> me : resultMap011.entrySet()) {
+                        System.out.printf("\n\nFor params radius: %d  remove: %d",
+
+                                me.getValue().getSiteRadius(),
+                                me.getValue().getRemoveWithLessUnique()
+                        );
+                        System.out.println("\nKPI #1: " + me.getKey().getCellToStop());
+                        System.out.println("KPI #2: " + me.getKey().getCellToMetroSimple());
+                        System.out.println("KPI #3: " + me.getKey().getCellToMetroFull());
+                        System.out.println(me.getKey().getRouteCount() + " trips");
+                        System.out.println(me.getKey().getStopCount() + " stops used");
+                        System.out.println("total distance: " + me.getKey().getTotalDistance() / 1000);
+                    }
+
+                    elapsedTime = System.currentTimeMillis() - elTime;
+                    System.out.printf("\n%d variants calculated in: %d seconds", resultMap011.size(), elapsedTime / 1000);
+                    break;
+
                 default:
                     System.out.println("No such algo!");
             }

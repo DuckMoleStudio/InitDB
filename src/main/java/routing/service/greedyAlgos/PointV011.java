@@ -17,13 +17,15 @@ import java.util.*;
 import static routing.service.Evaluate.eval;
 import static routing.service.Matrix.*;
 
-public class PointV01 {
+public class PointV011 {
 
 
     public static Map<WayPoint, MatrixLineMap> matrix;
     public static Result result;
     public static Map<WayPoint,Integer> visitCount = new HashMap<>();
     public static int discardCount;
+
+    public static Map<WayPoint,TrackList> nodes = new HashMap<>();
 
     public static Result Calculate(
             List<WayPoint> wayPoints,
@@ -35,7 +37,7 @@ public class PointV01 {
             visitCount.put(wp,0);
 
         result = new Result();
-        result.setMethodUsed("Simple Behaviour Algorithm, linking stops V.01");
+        result.setMethodUsed("Simple Algorithm, linking stops V.011");
 
         discardCount = 0;
         List<Hop> routes = new ArrayList<>(); // index is route number
@@ -44,6 +46,8 @@ public class PointV01 {
         List<Hop> links = new ArrayList<>();
         List<WayPoint> terminals = new ArrayList<>();
         Map<Hop, TrackList> trips = new HashMap<>();
+
+
 
         // GET TERMINALS
         Map<WayPoint,List<WayPoint>> plan = new HashMap<>();
@@ -82,7 +86,7 @@ public class PointV01 {
                 {
                     if (TimeBetweenMap(start, end, matrix) / 60000 > params.getSiteRadius() &&
                             TimeBetweenMap(end, start, matrix) / 60000 > params.getSiteRadius() &&
-                    !start.equals(end) && oneMetro) valid = true;
+                            !start.equals(end) && oneMetro) valid = true;
                     else {
                         if (startME.getTime() > endME.getTime())
                         {
@@ -122,42 +126,6 @@ public class PointV01 {
                 Itinerary itinerary = new Itinerary();
                 itinerary.setName(start.getDescription() + " - " + end.getDescription());
 
-                // map to routes
-                Hop link = new Hop(start,end);
-                Hop reverseLink = new Hop(end,start); // reverse link
-                if(routes.contains(link)||routes.contains(reverseLink))
-                {
-                    if(routes.contains(link))
-                    {
-                        itinerary.setRoute(routes.indexOf(link)+1); // forward number
-                        itinerary.setId(routeF.get(link)+1);
-                        routeF.put(link,routeF.get(link)+1);
-                        itinerary.setDir(0);
-                        trips.get(link).getForward().add(itinerary);
-                    }
-                    else
-                    {
-                        itinerary.setRoute(routes.indexOf(reverseLink)+1); // if we have reverse, use its number
-                        itinerary.setId(routeR.get(reverseLink)+1);
-                        routeR.put(reverseLink,routeR.get(reverseLink)+1);
-                        itinerary.setDir(1);
-                        trips.get(reverseLink).getReverse().add(itinerary);
-                    }
-                }
-                else
-                {
-                    routes.add(link);
-                    itinerary.setRoute(routes.indexOf(link)+1); // new number
-                    itinerary.setId(1);
-                    routeF.put(link,1);
-                    routeR.put(link,0);
-                    itinerary.setDir(0);
-                    trips.put(link,new TrackList());
-                    trips.get(link).getForward().add(itinerary);
-                }
-
-
-
                 itinerary.getWayPointList().add(start);
                 itinerary.getWayPointList().add(wp);
                 itinerary.getWayPointList().add(end);
@@ -172,64 +140,14 @@ public class PointV01 {
                 visitCount.put(wp, visitCount.get(wp) + 1);
                 visitCount.put(end, visitCount.get(end) + 1);
 
-                FillLink(itinerary, 50, false, 0);
+                if(!nodes.containsKey(start))
+                    nodes.put(start,new TrackList());
+                if(!nodes.containsKey(end))
+                    nodes.put(end,new TrackList());
 
-                itinerary.setId(itCount++);
+                nodes.get(start).getForward().add(itinerary);
+                nodes.get(end).getReverse().add(itinerary);
 
-                    result.getItineraries().add(itinerary);
-                    result.setDistanceTotal(result.getDistanceTotal() + itinerary.getDistance());
-                    result.setTimeTotal(result.getTimeTotal() + itinerary.getTime());
-                    result.setItineraryQty(result.getItineraryQty() + 1);
-
-            }
-
-
-        if(params.isLog())
-            printKPI(eval(result, matrix), "BEFORE:");
-
-
-        // DISCARD REDUNDANT
-        for(Hop link: routes)
-        {
-            TreeMap<Integer, List<Itinerary>> forward = new TreeMap<>();
-            TreeMap<Integer, List<Itinerary>> reverse = new TreeMap<>();
-
-            for (Itinerary ii : trips.get(link).getForward())
-            {
-                int redCount = 0;
-                for (WayPoint wp : ii.getWayPointList())
-                    if (visitCount.get(wp) < 2) redCount++;
-
-                if(forward.containsKey(redCount))
-                    forward.get(redCount).add(ii);
-                else
-                    forward.put(redCount, new ArrayList<>(List.of(ii)));
-            }
-
-            if(trips.get(link).getReverse().isEmpty())
-            {
-                // force 1 reverse trip
-                WayPoint start = link.getTo();
-                WayPoint end = link.getFrom();
-                Itinerary itinerary = new Itinerary();
-                itinerary.setName(end.getDescription() + " - " + start.getDescription());
-
-                // map to routes
-                itinerary.setRoute(routes.indexOf(link)+1); // forward number
-                itinerary.setId(1);
-                routeR.put(link,1);
-                itinerary.setDir(1);
-                trips.get(link).getReverse().add(itinerary);
-
-                itinerary.getWayPointList().add(start);
-                itinerary.getWayPointList().add(end);
-
-                itinerary.setDistance(DistanceBetweenMap(start, end, matrix));
-                itinerary.setTime(TimeBetweenMap(start, end, matrix));
-
-
-                visitCount.put(start, visitCount.get(start) + 1);
-                visitCount.put(end, visitCount.get(end) + 1);
 
                 FillLink(itinerary, 50, false, 0);
 
@@ -239,75 +157,102 @@ public class PointV01 {
                 result.setDistanceTotal(result.getDistanceTotal() + itinerary.getDistance());
                 result.setTimeTotal(result.getTimeTotal() + itinerary.getTime());
                 result.setItineraryQty(result.getItineraryQty() + 1);
-            }
 
-            for (Itinerary ii : trips.get(link).getReverse())
-            {
-                int redCount = 0;
-                for (WayPoint wp : ii.getWayPointList())
-                    if (visitCount.get(wp) < 2) redCount++;
-
-                if(reverse.containsKey(redCount))
-                    reverse.get(redCount).add(ii);
-                else
-                    reverse.put(redCount, new ArrayList<>(List.of(ii)));
             }
 
 
+        if(params.isLog())
+            printKPI(eval(result, matrix), "BEFORE:");
 
-            if (reverse.lastKey() < params.getRemoveWithLessUnique() && forward.lastKey() < params.getRemoveWithLessUnique())
-            {
-                // remove all
-                for(Map.Entry<Integer,List<Itinerary>> me: forward.entrySet())
-                    for(Itinerary iii: me.getValue()) removeItinerary(iii);
-                for(Map.Entry<Integer,List<Itinerary>> me: reverse.entrySet())
-                    for(Itinerary iii: me.getValue()) removeItinerary(iii);
-                continue;
-            }
 
-            if(forward.lastKey() < params.getRemoveWithLessUnique() || params.isOnePair())
-            {
-                // remove all forward but last
-                for(Map.Entry<Integer,List<Itinerary>> me: forward.entrySet())
-                    for(Itinerary iii: me.getValue())
-                        if(me.getKey().intValue()==forward.lastKey().intValue())
-                        {
-                            if(me.getValue().size()>1&&me.getValue().indexOf(iii)!=0)
-                            removeItinerary(iii);
-                        }
-                        else removeItinerary(iii);
-            }
-            else
-            {
-                // remove all forward by criteria
-                for(Map.Entry<Integer,List<Itinerary>> me: forward.entrySet())
-                    for(Itinerary iii: me.getValue())
-                        if(me.getKey()<params.getRemoveWithLessUnique()) removeItinerary(iii);
-            }
-
-            if(reverse.lastKey() < params.getRemoveWithLessUnique() || params.isOnePair())
-            {
-                // remove all reverse but last
-                for(Map.Entry<Integer,List<Itinerary>> me: reverse.entrySet())
-                    for(Itinerary iii: me.getValue())
-                        if(me.getKey().intValue()==reverse.lastKey().intValue())
-                        {
-                            if(me.getValue().size()>1&&me.getValue().indexOf(iii)!=0)
-                            removeItinerary(iii);
-                        }
-                        else removeItinerary(iii);
-            }
-            else
-            {
-                // remove all reverse by criteria
-                for(Map.Entry<Integer,List<Itinerary>> me: reverse.entrySet())
-                    for(Itinerary iii: me.getValue())
-                        if(me.getKey()<params.getRemoveWithLessUnique()) removeItinerary(iii);
-            }
+        // DISCARD REDUNDANT
+        for(Itinerary ii: new ArrayList<>(result.getItineraries()))
+        {
+            int redCount = 0;
+            for (WayPoint wp : ii.getWayPointList())
+                if (visitCount.get(wp) < 2) redCount++;
+            if(redCount<params.getRemoveWithLessUnique())
+                removeItinerary(ii);
         }
 
         if(params.isLog())
             printKPI(eval(result, matrix), "AFTER DISCARDING:");
+
+        // LINK INTO ROUTES
+
+        for(WayPoint node: terminals)
+        {
+            List<WayPoint> terminalsSubset = new ArrayList<>(nodes.keySet());
+            if(nodes.containsKey(node))
+            while(nodes.get(node).getForward().size()!=nodes.get(node).getReverse().size())
+            {
+                /*
+                System.out.printf("stop %d of %d/%d: %s  out: %d in: %d\n",
+                        terminals.indexOf(node),
+                        nodes.size(),
+                        terminals.size(),
+                        node.getDescription(),
+                        nodes.get(node).getForward().size(),
+                        nodes.get(node).getReverse().size());
+
+                 */
+
+                boolean condition;
+                WayPoint start;
+                WayPoint end;
+                MatrixElement tryME;
+                if(nodes.get(node).getForward().size()<nodes.get(node).getReverse().size())
+                {
+                    start = node;
+                    tryME = NearestMap(start, matrix, terminalsSubset);
+                    end = tryME.getWayPoint();
+                    // add trip if has less incoming
+                    condition = nodes.get(end).getForward().size()>nodes.get(end).getReverse().size();
+
+                }
+                else
+                {
+                    end = node;
+                    tryME = NearestMapFrom(end, matrix, terminalsSubset);
+                    start = tryME.getWayPoint();
+                    // add trip if has less outgoing
+                    condition = nodes.get(start).getForward().size()<nodes.get(start).getReverse().size();
+                }
+                if(condition)
+                {
+                    Itinerary itinerary = new Itinerary();
+                    itinerary.setName(end.getDescription() + " - " + start.getDescription());
+
+                    // TODO: map to routes
+
+                    itinerary.getWayPointList().add(start);
+                    itinerary.getWayPointList().add(end);
+
+                    itinerary.setDistance(DistanceBetweenMap(start, end, matrix));
+                    itinerary.setTime(TimeBetweenMap(start, end, matrix));
+
+                    visitCount.put(start, visitCount.get(start) + 1);
+                    visitCount.put(end, visitCount.get(end) + 1);
+
+                    nodes.get(start).getForward().add(itinerary);
+                    nodes.get(end).getReverse().add(itinerary);
+
+                    FillLink(itinerary, 50, false, 0);
+
+                    itinerary.setId(itCount++);
+
+                    result.getItineraries().add(itinerary);
+                    result.setDistanceTotal(result.getDistanceTotal() + itinerary.getDistance());
+                    result.setTimeTotal(result.getTimeTotal() + itinerary.getTime());
+                    result.setItineraryQty(result.getItineraryQty() + 1);
+                }
+                else
+                    terminalsSubset.remove(tryME.getWayPoint());
+            }
+        }
+
+        if(params.isLog())
+            printKPI(eval(result, matrix), "AFTER LINKING:");
 
 
         // REMOVE CLOSE STOPS
@@ -426,6 +371,13 @@ public class PointV01 {
         result.setTimeTotal(result.getTimeTotal() - it.getTime());
         result.setItineraryQty(result.getItineraryQty()-1);
         discardCount++;
+
+        // and from nodes!
+        WayPoint start = it.getWayPointList().get(0);
+        WayPoint end = it.getWayPointList().get(it.getWayPointList().size()-1);
+
+        nodes.get(start).getForward().remove(it);
+        nodes.get(end).getReverse().remove(it);
 
         //System.out.println("-- "+it.getId());
     }

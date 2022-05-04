@@ -15,4 +15,5 @@ public class V01params {
     int minDistanceBetweenStops;
     boolean log;
     boolean onePair;
+    boolean onlyMetro;
 }
