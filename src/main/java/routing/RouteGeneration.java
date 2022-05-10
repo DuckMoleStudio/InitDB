@@ -40,7 +40,7 @@ public class RouteGeneration {
         boolean isGood = false; // with access from R curbside, for GPX. True for "good" files, false for rest
         int capacity = 50;
         int iterations = 200; // these 2 for jsprit algo
-        boolean single = false;
+        boolean single = true;
 
         boolean dbExport = false; // export to postgres
         boolean newVersion = true;
@@ -88,7 +88,7 @@ public class RouteGeneration {
                     break;
 
                 case "V011":
-                    V01params params011 = new V01params(5,3, 100, true, true, false);
+                    V01params params011 = new V01params(4,3, 100, true, true, true);
                     rr = PointV011.Calculate(wayPointList, matrix, params011);
                     break;
 

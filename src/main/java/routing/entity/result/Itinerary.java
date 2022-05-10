@@ -27,4 +27,15 @@ public class Itinerary {
     private LocalTime timeStart, timeEnd;
     private double distance;
     private double time;
+
+    public WayPoint getFirst()
+    {
+        return this.wayPointList.get(0);
+    }
+
+    public  WayPoint getLast()
+    {
+        return this.wayPointList.get(this.wayPointList.size()-1);
+    }
 }
+

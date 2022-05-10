@@ -4,6 +4,7 @@ import routing.entity.WayPoint;
 import routing.entity.WayPointType;
 import routing.entity.eval.KPIs;
 import routing.entity.eval.V01params;
+import routing.entity.result.ItPair;
 import routing.entity.result.Itinerary;
 import routing.entity.result.Result;
 import routing.entity.result.TrackList;
@@ -21,7 +22,7 @@ public class PointV011 {
 
 
     public static Map<WayPoint, MatrixLineMap> matrix;
-    public static Result result;
+    public static Result result, finalResult;
     public static Map<WayPoint,Integer> visitCount = new HashMap<>();
     public static int discardCount;
 
@@ -37,7 +38,7 @@ public class PointV011 {
             visitCount.put(wp,0);
 
         result = new Result();
-        result.setMethodUsed("Simple Algorithm, linking stops V.011");
+        result.setMethodUsed("Simple Algorithm, linking stops & complex routes V.011");
 
         discardCount = 0;
         List<Hop> routes = new ArrayList<>(); // index is route number
@@ -46,8 +47,6 @@ public class PointV011 {
         List<Hop> links = new ArrayList<>();
         List<WayPoint> terminals = new ArrayList<>();
         Map<Hop, TrackList> trips = new HashMap<>();
-
-
 
         // GET TERMINALS
         Map<WayPoint,List<WayPoint>> plan = new HashMap<>();
@@ -153,6 +152,7 @@ public class PointV011 {
 
                 itinerary.setId(itCount++);
 
+
                 result.getItineraries().add(itinerary);
                 result.setDistanceTotal(result.getDistanceTotal() + itinerary.getDistance());
                 result.setTimeTotal(result.getTimeTotal() + itinerary.getTime());
@@ -178,8 +178,43 @@ public class PointV011 {
         if(params.isLog())
             printKPI(eval(result, matrix), "AFTER DISCARDING:");
 
-        // LINK INTO ROUTES
+        // GROUP SITES
+        for(WayPoint node: terminals)
+        if (nodes.containsKey(node))
+            {
+                // find adjacent
+                for(WayPoint tryNear: terminals)
+                    if(nodes.containsKey(tryNear)&&
+                            (DistanceBetweenMap(node,tryNear,matrix)<400||
+                                    DistanceBetweenMap(tryNear,node,matrix)<400))
+                    {
+                        // reroute to node
+                        for(Itinerary out: nodes.get(tryNear).getForward())
+                        {
+                            out.setName(node.getDescription()+" - "+out.getLast().getDescription());
+                            out.setTime(out.getTime()+TimeBetweenMap(node,tryNear,matrix));
+                            out.setDistance(out.getDistance()+DistanceBetweenMap(node,tryNear,matrix));
+                            out.getWayPointList().add(0,node);
 
+                            nodes.get(node).getForward().add(out);
+                        }
+                        for(Itinerary in: nodes.get(tryNear).getReverse())
+                        {
+                            in.setName(in.getFirst().getDescription()+" - "+node.getDescription());
+                            in.setTime(in.getTime()+TimeBetweenMap(tryNear,node,matrix));
+                            in.setDistance(in.getDistance()+DistanceBetweenMap(tryNear,node,matrix));
+                            in.getWayPointList().add(node);
+
+                            nodes.get(node).getReverse().add(in);
+                        }
+                        // remove from nodes
+                        nodes.remove(tryNear);
+                    }
+            }
+
+
+
+        // LINK INTO ROUTES
         for(WayPoint node: terminals)
         {
             List<WayPoint> terminalsSubset = new ArrayList<>(nodes.keySet());
@@ -223,8 +258,6 @@ public class PointV011 {
                     Itinerary itinerary = new Itinerary();
                     itinerary.setName(end.getDescription() + " - " + start.getDescription());
 
-                    // TODO: map to routes
-
                     itinerary.getWayPointList().add(start);
                     itinerary.getWayPointList().add(end);
 
@@ -251,13 +284,163 @@ public class PointV011 {
             }
         }
 
+
         if(params.isLog())
             printKPI(eval(result, matrix), "AFTER LINKING:");
+
+        // CREATE ROUTES
+        finalResult = new Result();
+        finalResult.setMethodUsed("Simple Algorithm, linking stops & complex routes V.011");
+        int routeCount = 1;
+        int tripCount = 1;
+
+        // 1. Select simple
+        for(WayPoint node: terminals)
+        {
+            if(nodes.containsKey(node))
+            {
+                List<ItPair> pairs = new ArrayList<>();
+                List<Itinerary> revUsed = new ArrayList<>();
+                for(Itinerary forward: nodes.get(node).getForward())
+                    for(Itinerary reverse: nodes.get(node).getReverse())
+                        if(reverse.getFirst().equals(forward.getLast()) && !revUsed.contains(reverse))
+                        {
+                            pairs.add(new ItPair(forward, reverse));
+                            revUsed.add(reverse);
+                        }
+
+                // add & remove
+                for(ItPair pair: pairs)
+                {
+                    WayPoint start = node;
+                    WayPoint end = pair.getForward().getLast();
+
+                    pair.getForward().setId(tripCount++);
+                    pair.getForward().setRoute(routeCount);
+                    pair.getForward().setDir(0);
+                    pair.getReverse().setId(tripCount++);
+                    pair.getReverse().setRoute(routeCount);
+                    pair.getReverse().setDir(1);
+                    routeCount++;
+
+                    // and from nodes!
+
+                    nodes.get(start).getForward().remove(pair.getForward());
+                    nodes.get(start).getReverse().remove(pair.getReverse());
+
+                    nodes.get(end).getForward().remove(pair.getReverse());
+                    nodes.get(end).getReverse().remove(pair.getForward());
+
+                    finalResult.getItineraries().add(pair.getForward());
+                    finalResult.getItineraries().add(pair.getReverse());
+                    finalResult.setDistanceTotal(result.getDistanceTotal()
+                            + pair.getForward().getDistance() + pair.getReverse().getDistance());
+                    finalResult.setTimeTotal(result.getTimeTotal()
+                            + pair.getForward().getTime() + pair.getReverse().getTime());
+                    finalResult.setItineraryQty(result.getItineraryQty() + 2);
+                }
+            }
+        }
+
+        // 2. Select circular
+        for(WayPoint node: terminals)
+        {
+            if(nodes.containsKey(node))
+            {
+                List<List<Itinerary>> circles = new ArrayList<>();
+                List<Itinerary> linksUsed = new ArrayList<>();
+                for(Itinerary itinerary: nodes.get(node).getForward())
+                {
+                    Queue<Itinerary> itQueue = new ArrayDeque<>();
+                    Map<WayPoint, List<Itinerary>> tripLists = new HashMap<>();
+                    List<Itinerary> resultRoute = null;
+                    itQueue.add(itinerary);
+                    tripLists.put(itinerary.getLast(), new ArrayList<>(List.of(itinerary)));
+                    boolean reached = false;
+                    while (!itQueue.isEmpty() || !reached)
+                    {
+                        Itinerary tryIt1 = null;
+                        try
+                        {
+                            tryIt1 = itQueue.remove();
+                        }
+                        catch (NoSuchElementException nse)
+                        {
+                            break;
+                        }
+                        WayPoint tryWP = tryIt1.getLast();
+                        for (Itinerary tryIt2 : nodes.get(tryWP).getForward())
+                            if (!linksUsed.contains(tryIt2))
+                            {
+                                if (tryIt2.getLast().equals(node))
+                                {
+                                    reached = true; // found!!
+                                    resultRoute = new ArrayList<>(tripLists.get(tryWP));
+                                    resultRoute.add(tryIt2);
+                                    circles.add(resultRoute);
+                                    // mark links used
+                                    linksUsed.addAll(resultRoute);
+                                    continue;
+                                }
+                                if (!tripLists.containsKey(tryIt2.getLast())) // wp not visited
+                                {
+                                    itQueue.add(tryIt2);
+                                    List<Itinerary> tryTrip = new ArrayList<>(tripLists.get(tryWP));
+                                    tryTrip.add(tryIt2);
+                                    tripLists.put(tryIt2.getLast(), tryTrip);
+                                }
+                            }
+                    }
+                }
+                    // TODO: add & remove itineraries
+                    for(List<Itinerary> circleList: circles)
+                    {
+                        Itinerary circle = new Itinerary();
+                        for (Itinerary it : circleList)
+                        {
+                            circle.getWayPointList().addAll(it.getWayPointList());
+                            circle.setDistance(circle.getDistance() + it.getDistance());
+                            circle.setTime(circle.getTime() + it.getTime());
+
+                            // remove from nodes
+                            nodes.get(it.getFirst()).getForward().remove(it);
+                            nodes.get(it.getLast()).getReverse().remove(it);
+
+                            it.setId(tripCount++);
+                            it.setRoute(routeCount);
+                            it.setDir(0);
+
+
+                            finalResult.getItineraries().add(it);
+                            finalResult.setDistanceTotal(result.getDistanceTotal() + it.getDistance());
+                            finalResult.setTimeTotal(result.getTimeTotal() + it.getTime());
+                            finalResult.setItineraryQty(result.getItineraryQty() + 1);
+                        }
+
+                        routeCount++;
+
+                        /*
+                        circle.setId(tripCount++);
+                        circle.setRoute(routeCount++);
+                        circle.setDir(0);
+                        circle.setName(circle.getFirst().getDescription() + " - " + circle.getFirst().getDescription());
+
+                        finalResult.getItineraries().add(circle);
+                        finalResult.setDistanceTotal(result.getDistanceTotal() + circle.getDistance());
+                        finalResult.setTimeTotal(result.getTimeTotal() + circle.getTime());
+                        finalResult.setItineraryQty(result.getItineraryQty() + 1);
+
+                         */
+                    }
+
+            }
+        }
+
 
 
         // REMOVE CLOSE STOPS
 
-        for(Itinerary it: result.getItineraries())
+        for(Itinerary it: finalResult.getItineraries())
         {
             List<WayPoint> toCleanse = new ArrayList<>();
             List<WayPoint> stops = it.getWayPointList();
@@ -272,10 +455,10 @@ public class PointV011 {
         }
 
         if(params.isLog())
-            printKPI(eval(result, matrix), "AFTER CLEANSING:");
+            printKPI(eval(finalResult, matrix), "AFTER CLEANSING:");
 
 
-        return result;
+        return finalResult;
     }
 
 
@@ -373,12 +556,11 @@ public class PointV011 {
         discardCount++;
 
         // and from nodes!
-        WayPoint start = it.getWayPointList().get(0);
-        WayPoint end = it.getWayPointList().get(it.getWayPointList().size()-1);
 
-        nodes.get(start).getForward().remove(it);
-        nodes.get(end).getReverse().remove(it);
+        nodes.get(it.getFirst()).getForward().remove(it);
+        nodes.get(it.getLast()).getReverse().remove(it);
 
         //System.out.println("-- "+it.getId());
     }
+
 }
