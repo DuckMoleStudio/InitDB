@@ -83,12 +83,12 @@ public class RouteGeneration {
                     break;
 
                 case "V01":
-                    V01params params01 = new V01params(7,5, 100, true, true, false);
+                    V01params params01 = new V01params(200,7,5, 100, true, true, false);
                     rr = PointV01.Calculate(wayPointList, matrix, params01);
                     break;
 
                 case "V011":
-                    V01params params011 = new V01params(4,3, 100, true, true, true);
+                    V01params params011 = new V01params(600,1,3, 100, true, true, true);
                     rr = PointV011.Calculate(wayPointList, matrix, params011);
                     break;
 
@@ -111,8 +111,8 @@ public class RouteGeneration {
                 if(newVersion)
                 {
                     Version version = new Version();
-                    version.setDesc("Alg.V00 ЗАО: минимальная длина маршрутной сети");
-                    version.setDate(Date.valueOf("2022-4-24"));
+                    version.setDesc("Alg.V01 ЗАО: лучшее покрытие (560 km)");
+                    version.setDate(Date.valueOf("2022-5-11"));
                     updateVersion(version);
                     versionId = version.getVersionId();
                 }
@@ -177,7 +177,7 @@ public class RouteGeneration {
                     for (int i = 1; i < 9; i++)
                         for (int j = 1; j < 6; j++)
                              {
-                                        params01 = new V01params(i, j, 100, false, true,true);
+                                        params01 = new V01params(200,i, j, 100, false, true,true);
                                         rr = PointV01.Calculate(wayPointList, matrix, params01);
 
                                         // ----- EVALUATE ---------
@@ -210,10 +210,11 @@ public class RouteGeneration {
 
                     V01params params011;
 
-                    for (int i = 1; i < 10; i++)
-                        for (int j = 1; j < 6; j++)
+                    for (int i = 1; i < 6; i++)
+                        for (int j = 2; j < 6; j++)
+                            for (int k = 1; k < 9; k++)
                         {
-                            params011 = new V01params(i, j, 100, false, true,true);
+                            params011 = new V01params(k*100, i, j, 100, false, true,false);
                             rr = PointV011.Calculate(wayPointList, matrix, params011);
 
                             // ----- EVALUATE ---------
@@ -223,9 +224,9 @@ public class RouteGeneration {
                         }
 
                     for (Map.Entry<KPIs, V01params> me : resultMap011.entrySet()) {
-                        System.out.printf("\n\nFor params radius: %d  remove: %d",
-
+                        System.out.printf("\n\nFor params site: %d distance: %d  remove: %d",
                                 me.getValue().getSiteRadius(),
+                                me.getValue().getMinTerminalGap(),
                                 me.getValue().getRemoveWithLessUnique()
                         );
                         System.out.println("\nKPI #1: " + me.getKey().getCellToStop());

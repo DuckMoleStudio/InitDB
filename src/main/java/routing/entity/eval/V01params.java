@@ -11,6 +11,7 @@ import lombok.*;
 
 public class V01params {
     int siteRadius;
+    int minTerminalGap;
     int removeWithLessUnique;
     int minDistanceBetweenStops;
     boolean log;

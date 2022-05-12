@@ -14,6 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 @ToString
 @EqualsAndHashCode
+@With
 
 // Single route for a single car
 public class Itinerary {

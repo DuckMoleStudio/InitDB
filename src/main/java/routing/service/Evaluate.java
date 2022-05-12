@@ -128,7 +128,7 @@ public class Evaluate {
         GeometryFactory gf = new GeometryFactory(new PrecisionModel(),4326);
         query = session.createQuery(
                 "select p from FishnetCellVer p " +
-                        "where within(p.geom, :area) = true ", FishnetCellVer.class);
+                        "where intersects(p.geom, :area) = true ", FishnetCellVer.class);
         query.setParameter("area", getAdmzoneById(6).getGeom());
         List<FishnetCellVer> cells = query.getResultList();
 
@@ -185,10 +185,11 @@ public class Evaluate {
                 cell.getNearestMetro().put(versionId,"no stops");
             }
 
-            int pop = cell.getHome()+cell.getWork();
+            //int pop = cell.getHome()+cell.getWork();
+            int pop = cell.getHome();
             totalPop+=pop;
             if(cell.getNearestMetro().get(versionId).equals("ok")) count1+=pop;
-            if(cell.getMetroSimple().get(versionId)<900) count2+=pop;
+            if(cell.getMetroSimple().get(versionId)<1200) count2+=pop;
             if(cell.getMetroFull().get(versionId)<1200) count3+=pop;
 
         }

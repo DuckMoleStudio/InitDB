@@ -109,8 +109,8 @@ public class PointV01 {
                                 end = endME.getWayPoint();
                                 oneMetro = end.getType().equals(WayPointType.METRO_TERMINAL)
                                         ||start.getType().equals(WayPointType.METRO_TERMINAL);
-                                if (TimeBetweenMap(start, end, matrix) / 60000 > params.getSiteRadius() &&
-                                        TimeBetweenMap(end, start, matrix) / 60000 > params.getSiteRadius() &&
+                                if (TimeBetweenMap(start, end, matrix) / 60000 > params.getMinTerminalGap() &&
+                                        TimeBetweenMap(end, start, matrix) / 60000 > params.getMinTerminalGap() &&
                                         !start.equals(end) && oneMetro) valid = true;
                                 else
                                     curTerminals.remove(end);
