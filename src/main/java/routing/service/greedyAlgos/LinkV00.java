@@ -2,6 +2,7 @@ package routing.service.greedyAlgos;
 
 import routing.entity.WayPoint;
 import routing.entity.WayPointType;
+import routing.entity.eval.CellStopPattern;
 import routing.entity.eval.KPIs;
 import routing.entity.eval.V00params;
 import routing.entity.result.Itinerary;
@@ -26,7 +27,8 @@ public class LinkV00 {
     public static Result Calculate(
             List<WayPoint> wayPoints,
             Map<WayPoint, MatrixLineMap> matrixIn,
-            V00params params)
+            V00params params,
+            CellStopPattern cellStopPattern)
     {
         matrix = matrixIn;
         for(WayPoint wp: wayPoints)
@@ -131,7 +133,7 @@ public class LinkV00 {
         result.setItineraryQty(links.size());
 
         if(params.isLog())
-        printKPI(eval(result, matrix), "BEFORE:");
+        printKPI(eval(result, matrix, cellStopPattern), "BEFORE:");
 
         // GET UNUSED & MAP TO LINKS
         Map<Hop,List<WayPoint>> unusedMap = new HashMap<>();
@@ -220,7 +222,7 @@ public class LinkV00 {
         }
 
         if(params.isLog())
-        printKPI(eval(result, matrix), "WITH UNUSED:");
+        printKPI(eval(result, matrix, cellStopPattern), "WITH UNUSED:");
 
 
         // DISCARD REDUNDANT
@@ -321,7 +323,7 @@ public class LinkV00 {
         //System.out.println("\nDiscarded: "+discardCount);
 
         if(params.isLog())
-        printKPI(eval(result, matrix), "AFTER DISCARDING:");
+        printKPI(eval(result, matrix, cellStopPattern), "AFTER DISCARDING:");
 
 
         // REMOVE CLOSE STOPS
@@ -341,7 +343,7 @@ public class LinkV00 {
         }
 
         if(params.isLog())
-        printKPI(eval(result, matrix), "AFTER CLEANSING:");
+        printKPI(eval(result, matrix, cellStopPattern), "AFTER CLEANSING:");
 
 
         return result;

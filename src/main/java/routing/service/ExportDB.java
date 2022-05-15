@@ -42,7 +42,7 @@ public class ExportDB {
         final int MetroCriteria = 150; // meters, if stop is within, then it's a metro stop
         final int StopDelay = 30; // sec, time loss for stopping
         final int PedestrianSpeed = 1; // in m/s, 1 equals 3.6 km/h but we have air distances so ok
-        final int IntervalDummy = 600; // in case not available
+        final double IntervalDummy = 1467*(result.getDistanceTotal()/668497); // compared to reference
         final int Radius = 500; // meters, looking for stops in this radius
         final double speedRatio = 2.0;
         final int RadiusMetro = 6000; // meters, looking for metro in this radius
@@ -171,7 +171,7 @@ public class ExportDB {
         System.out.printf("\n\n===== Exported %d routes & %d trips in %d seconds ======\n\n"
                 , countRoutes, countTrips, (System.currentTimeMillis()-startTime)/1000);
 
-        CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, IntervalDummy, versionId);
+        CalcStopToMetroVer(MetroCriteria, StopDelay, PedestrianSpeed, 900, versionId);
         CalcCellMinDistToStopHS(versionId,true,6);
         CalcCellMetroAllHS(Radius, RadiusMetro, PedestrianSpeed, osmFile, dirGH, speedRatio, SnapDistance, versionId,true,6);
     }

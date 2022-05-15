@@ -7,6 +7,7 @@ import org.hibernate.query.Query;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
 import routing.entity.WayPoint;
+import routing.entity.eval.CellStopPattern;
 import routing.entity.eval.KPIs;
 import routing.entity.result.Itinerary;
 import routing.entity.result.Result;
@@ -21,7 +22,7 @@ import static service.AdmzoneService.getAdmzoneById;
 
 public class Evaluate {
 
-    public static KPIs eval(Result result,Map<WayPoint, MatrixLineMap> matrix)
+    public static KPIs eval(Result result, Map<WayPoint, MatrixLineMap> matrix, CellStopPattern cellStopPattern)
     {
         final int MetroCriteria = 150; // meters, if stop is within, then it's a metro stop
         final int StopDelay = 30; // sec, time loss for stopping
@@ -39,6 +40,10 @@ public class Evaluate {
         int stopCount = 0;
         int versionId = 0;
 
+        double effTotalDistance = 0;
+        int effTrips = 0;
+
+        long startTime = System.currentTimeMillis();
 
         // ---------- STOPS TO METRO ---------------
 
@@ -62,6 +67,8 @@ public class Evaluate {
 
         for(Itinerary itinerary: result.getItineraries())
         {
+            effTotalDistance += itinerary.getDistance();
+            effTrips++;
             List<WayPoint> routeStops = itinerary.getWayPointList();
 
             for (WayPoint wp: routeStops)
@@ -122,25 +129,17 @@ public class Evaluate {
 
         }
         //System.out.println(stopCount);
+        long t1 = System.currentTimeMillis();
+        //System.out.println("stage 1: "+(t1-startTime));
 
         // ------------ CELL TO KPI ---------------
 
-        GeometryFactory gf = new GeometryFactory(new PrecisionModel(),4326);
-        query = session.createQuery(
-                "select p from FishnetCellVer p " +
-                        "where intersects(p.geom, :area) = true ", FishnetCellVer.class);
-        query.setParameter("area", getAdmzoneById(6).getGeom());
-        List<FishnetCellVer> cells = query.getResultList();
+
+        List<FishnetCellVer> cells = cellStopPattern.getCells();
 
         for(FishnetCellVer cell: cells)
         {
-            query = session.createQuery(
-                    "select p.id, " +
-                            "distance(transform(p.geom,98568), transform(:cell,98568)) from BusStopVer p " +
-                            "where dwithin(transform(p.geom,98568), transform(:cell,98568), :radius) = true");
-            query.setParameter("cell", gf.createPoint(getCentroid(cell.getGeom())));
-            query.setParameter("radius", Radius);
-            List<Object[]> stopsNearest = (List<Object[]>)query.list();
+            List<Object[]> stopsNearest = cellStopPattern.getStopsNearest().get(cell);
 
             if(!stopsNearest.isEmpty())
             {
@@ -199,7 +198,13 @@ public class Evaluate {
         kpis.setCellToMetroFull(100*count3/totalPop);
         kpis.setRouteCount(result.getItineraryQty());
         kpis.setTotalDistance(result.getDistanceTotal());
+        //kpis.setRouteCount(effTrips);
+        //kpis.setTotalDistance(effTotalDistance);
         kpis.setStopCount(stopCount);
+
+        long t2 = System.currentTimeMillis();
+        //System.out.println("stage 2: "+(t2-t1));
+
         return  kpis;
     }
 }

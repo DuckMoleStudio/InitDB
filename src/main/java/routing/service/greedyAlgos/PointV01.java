@@ -2,6 +2,7 @@ package routing.service.greedyAlgos;
 
 import routing.entity.WayPoint;
 import routing.entity.WayPointType;
+import routing.entity.eval.CellStopPattern;
 import routing.entity.eval.KPIs;
 import routing.entity.eval.V01params;
 import routing.entity.result.Itinerary;
@@ -28,7 +29,8 @@ public class PointV01 {
     public static Result Calculate(
             List<WayPoint> wayPoints,
             Map<WayPoint, MatrixLineMap> matrixIn,
-            V01params params)
+            V01params params,
+            CellStopPattern cellStopPattern)
     {
         matrix = matrixIn;
         for(WayPoint wp: wayPoints)
@@ -80,8 +82,8 @@ public class PointV01 {
 
                 while (!valid&&!curTerminals.isEmpty())
                 {
-                    if (TimeBetweenMap(start, end, matrix) / 60000 > params.getSiteRadius() &&
-                            TimeBetweenMap(end, start, matrix) / 60000 > params.getSiteRadius() &&
+                    if (TimeBetweenMap(start, end, matrix) / 60000 > params.getMinTerminalGap() &&
+                            TimeBetweenMap(end, start, matrix) / 60000 > params.getMinTerminalGap() &&
                     !start.equals(end) && oneMetro) valid = true;
                     else {
                         if (startME.getTime() > endME.getTime())
@@ -93,8 +95,8 @@ public class PointV01 {
                                 start = startME.getWayPoint();
                                 oneMetro = end.getType().equals(WayPointType.METRO_TERMINAL)
                                         ||start.getType().equals(WayPointType.METRO_TERMINAL);
-                                if (TimeBetweenMap(start, end, matrix) / 60000 > params.getSiteRadius() &&
-                                        TimeBetweenMap(end, start, matrix) / 60000 > params.getSiteRadius() &&
+                                if (TimeBetweenMap(start, end, matrix) / 60000 > params.getMinTerminalGap() &&
+                                        TimeBetweenMap(end, start, matrix) / 60000 > params.getMinTerminalGap() &&
                                         !start.equals(end) && oneMetro) valid = true;
                                 else
                                     curTerminals.remove(start);
@@ -185,7 +187,7 @@ public class PointV01 {
 
 
         if(params.isLog())
-            printKPI(eval(result, matrix), "BEFORE:");
+            printKPI(eval(result, matrix, cellStopPattern), "BEFORE:");
 
 
         // DISCARD REDUNDANT
@@ -307,7 +309,7 @@ public class PointV01 {
         }
 
         if(params.isLog())
-            printKPI(eval(result, matrix), "AFTER DISCARDING:");
+            printKPI(eval(result, matrix, cellStopPattern), "AFTER DISCARDING:");
 
 
         // REMOVE CLOSE STOPS
@@ -327,7 +329,7 @@ public class PointV01 {
         }
 
         if(params.isLog())
-            printKPI(eval(result, matrix), "AFTER CLEANSING:");
+            printKPI(eval(result, matrix, cellStopPattern), "AFTER CLEANSING:");
 
 
         return result;

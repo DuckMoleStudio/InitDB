@@ -2,6 +2,7 @@ package routing.service.greedyAlgos;
 
 import routing.entity.WayPoint;
 import routing.entity.WayPointType;
+import routing.entity.eval.CellStopPattern;
 import routing.entity.eval.KPIs;
 import routing.entity.eval.V01params;
 import routing.entity.result.ItPair;
@@ -31,7 +32,8 @@ public class PointV011 {
     public static Result Calculate(
             List<WayPoint> wayPoints,
             Map<WayPoint, MatrixLineMap> matrixIn,
-            V01params params)
+            V01params params,
+            CellStopPattern cellStopPattern)
     {
         matrix = matrixIn;
         for(WayPoint wp: wayPoints)
@@ -153,7 +155,7 @@ public class PointV011 {
 
 
         if(params.isLog())
-            printKPI(eval(result, matrix), "BEFORE:");
+            printKPI(eval(result, matrix, cellStopPattern), "BEFORE:");
 
 
         // DISCARD REDUNDANT
@@ -167,7 +169,7 @@ public class PointV011 {
         }
 
         if(params.isLog())
-            printKPI(eval(result, matrix), "AFTER DISCARDING:");
+            printKPI(eval(result, matrix, cellStopPattern), "AFTER DISCARDING:");
 
         // GROUP SITES
         for(WayPoint node: terminals)
@@ -250,11 +252,11 @@ public class PointV011 {
 
                     finalResult.getItineraries().add(pair.getForward());
                     finalResult.getItineraries().add(pair.getReverse());
-                    finalResult.setDistanceTotal(result.getDistanceTotal()
+                    finalResult.setDistanceTotal(finalResult.getDistanceTotal()
                             + pair.getForward().getDistance() + pair.getReverse().getDistance());
-                    finalResult.setTimeTotal(result.getTimeTotal()
+                    finalResult.setTimeTotal(finalResult.getTimeTotal()
                             + pair.getForward().getTime() + pair.getReverse().getTime());
-                    finalResult.setItineraryQty(result.getItineraryQty() + 2);
+                    finalResult.setItineraryQty(finalResult.getItineraryQty() + 2);
                 }
             }
         }
@@ -284,9 +286,9 @@ public class PointV011 {
 
 
                             finalResult.getItineraries().add(circle);
-                            finalResult.setDistanceTotal(result.getDistanceTotal() + circle.getDistance());
-                            finalResult.setTimeTotal(result.getTimeTotal() + circle.getTime());
-                            finalResult.setItineraryQty(result.getItineraryQty() + 1);
+                            finalResult.setDistanceTotal(finalResult.getDistanceTotal() + circle.getDistance());
+                            finalResult.setTimeTotal(finalResult.getTimeTotal() + circle.getTime());
+                            finalResult.setItineraryQty(finalResult.getItineraryQty() + 1);
                         }
                     }
 
@@ -312,7 +314,7 @@ public class PointV011 {
         }
 
         if(params.isLog())
-            printKPI(eval(finalResult, matrix), "AFTER CLEANSING:");
+            printKPI(eval(finalResult, matrix, cellStopPattern), "AFTER CLEANSING:");
 
 
         return finalResult;
