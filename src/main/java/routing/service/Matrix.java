@@ -31,22 +31,28 @@ public class Matrix {
         hopper.setOSMFile(osmFile);
         hopper.setGraphHopperLocation(dir);
 
-        hopper.getEncodingManagerBuilder().add(new BusFlagEncoder(5,5,1));
+        //hopper.getEncodingManagerBuilder().add(new BusFlagEncoder(5,5,1));
         hopper.getEncodingManagerBuilder().add(new NGPTFlagEncoder(5,5,1));
 
         hopper.setProfiles(
                 new Profile("ngpt1").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(false),
-                new Profile("ngpt2").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60),
-                new Profile("bus1").setVehicle("bus").setWeighting("fastest").setTurnCosts(false),
-                new Profile("bus2").setVehicle("bus").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60),
+                new Profile("ngpt2").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true),
+                new Profile("ngpt3").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60),
+                new Profile("ngpt4").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 120),
+                new Profile("ngpt5").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 240),
+                //new Profile("bus1").setVehicle("bus").setWeighting("fastest").setTurnCosts(false),
+                //new Profile("bus2").setVehicle("bus").setWeighting("fastest").setTurnCosts(true),
                 new Profile("car1").setVehicle("car").setWeighting("fastest").setTurnCosts(false),
-                new Profile("car2").setVehicle("car").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60)
+                new Profile("car2").setVehicle("car").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 10)
         );
         hopper.getCHPreparationHandler().setCHProfiles(
                 new CHProfile("ngpt1"),
                 new CHProfile("ngpt2"),
-                new CHProfile("bus1"),
-                new CHProfile("bus2"),
+                new CHProfile("ngpt3"),
+                new CHProfile("ngpt4"),
+                new CHProfile("ngpt5"),
+                //new CHProfile("bus1"),
+                //new CHProfile("bus2"),
                 new CHProfile("car1"),
                 new CHProfile("car2")
         );
@@ -55,7 +61,7 @@ public class Matrix {
 
 
         String profile = "ngpt1";
-        if(turns) profile = "ngpt2";
+        if(turns) profile = "ngpt5";
 
         int section = (int)Math.ceil(wayPoints.size() / 4);
 
@@ -87,7 +93,7 @@ public class Matrix {
                             if(curbs)
                             {
                                 req.setCurbsides(Arrays.asList("right", "right"));
-                                req.putHint("u_turn_costs", 6000);
+                                //req.putHint("u_turn_costs", 120);
                             }
 
                             req.setSnapPreventions(Arrays.asList("bridge", "tunnel"));
@@ -97,12 +103,23 @@ public class Matrix {
 
                             GHResponse res = hopper.route(req);
 
-                            double distance = Math.round(res.getBest().getDistance()); // to fit in storage line
-                            double time = res.getBest().getTime();
+                            double distance = Double.POSITIVE_INFINITY;
+                            double time = Double.POSITIVE_INFINITY;
 
+                            /*
                             if (res.hasErrors()) {
                                 throw new RuntimeException(res.getErrors().toString());
                             }
+
+                             */
+
+                            if (!res.hasErrors())
+                            {
+                                distance = Math.round(res.getBest().getDistance()); // to fit in storage line
+                                time = res.getBest().getTime();
+                            }
+
+
 
                             line.getDistances().put(wayPoints.get(j),new TimeDistancePair(time,distance));
                         }
@@ -112,6 +129,7 @@ public class Matrix {
                     if(wayPoints.size() <= 50) div = wayPoints.size()-1;
                     if(i%(wayPoints.size()/div) == 0)
                         System.out.print("."); // progress indicator, optimized for 50 dots or fewer
+
 
                     synchronized (matrix) {matrix.put(wayPoints.get(i),line);}
                 }
@@ -205,19 +223,20 @@ public class Matrix {
     {
         double minTime = Double.POSITIVE_INFINITY;
         MatrixElement result = new MatrixElement();
+
+        int errCount=0;
         for(WayPoint wp: existing)
         {
-            double tryTime = matrix.get(wp).getDistances().get(end).getTime();
-            double tryDistance = matrix.get(wp).getDistances().get(end).getDistance();
-            if (tryTime<minTime)
-            {
-                minTime = tryTime;
-                result.setDistance(tryDistance);
-                result.setTime(tryTime);
-                result.setWayPoint(wp);
-            }
-        }
 
+                double tryTime = matrix.get(wp).getDistances().get(end).getTime();
+                double tryDistance = matrix.get(wp).getDistances().get(end).getDistance();
+                if (tryTime < minTime) {
+                    minTime = tryTime;
+                    result.setDistance(tryDistance);
+                    result.setTime(tryTime);
+                    result.setWayPoint(wp);
+                }
+        }
 
         return result;
     }

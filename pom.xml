@@ -85,6 +85,13 @@
             <version>4.0</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/com.graphhopper/jsprit-core -->
+        <dependency>
+            <groupId>com.graphhopper</groupId>
+            <artifactId>jsprit-core</artifactId>
+            <version>1.8</version>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-simple -->
         <dependency>
             <groupId>org.slf4j</groupId>

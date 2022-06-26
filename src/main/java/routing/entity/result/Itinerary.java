@@ -26,8 +26,8 @@ public class Itinerary {
     private List<WayPoint> wayPointList = new ArrayList<>();
     private List<LocalTime> arrivals = new ArrayList<>();
     private LocalTime timeStart, timeEnd;
-    private double distance;
-    private double time;
+    private double distance=0;
+    private double time=0;
 
     public WayPoint getFirst()
     {

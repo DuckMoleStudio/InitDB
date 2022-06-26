@@ -188,6 +188,8 @@ public class Calculation {
             stop.getTripSimple().put(versionId,0d); //?
             stop.getTripFull().put(versionId,0d); //?
             stop.getActive().put(versionId,false);
+            if(versionId==5)
+            stop.setTerminal(false);
             stopMap.put(stop.getId(), stop);
         }
 
@@ -200,8 +202,11 @@ public class Calculation {
                 routeStops = Arrays.asList(trip.getStops());
 
             //set terminals
-            stopMap.get(Integer.parseInt(routeStops.get(0))).setTerminal(true);
-            stopMap.get(Integer.parseInt(routeStops.get(routeStops.size()-1))).setTerminal(true);
+            if(versionId==5)
+            {
+                stopMap.get(Integer.parseInt(routeStops.get(0))).setTerminal(true);
+                stopMap.get(Integer.parseInt(routeStops.get(routeStops.size() - 1))).setTerminal(true);
+            }
 
             double interval = trip.getInterval()/2;
             if(Double.isNaN(interval)) interval = IntervalDummy;
