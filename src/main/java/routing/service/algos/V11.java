@@ -169,9 +169,9 @@ public class V11 extends Algo
                 dirForward.setRoute(routeCount);
 
 
-                    Itinerary newReverse1 = buildItinerary(new ArrayList<>(List.of(endForward, startForward)));
-                    newReverse1.setDir(1);
-                    newReverse1.setRoute(routeCount++);
+                    Itinerary newReverseDirect = buildItinerary(new ArrayList<>(List.of(endForward, startForward)));
+                    newReverseDirect.setDir(1);
+                    newReverseDirect.setRoute(routeCount++);
 
                 List<WayPoint> reverseList = new ArrayList<>();
                 reverseList.add(endForward);
@@ -188,23 +188,23 @@ public class V11 extends Algo
                         reverseList.add(1,reverseWP);
                 }
                 reverseList.add(startForward);
-                Itinerary newReverse2 = buildItinerary(reverseList);
-                newReverse2.setDir(8);
+                Itinerary newReverseExact = buildItinerary(reverseList);
+                newReverseExact.setDir(8);
 
-                if((newReverse2.getTime()/newReverse1.getTime())<params.getReverseDetour())
+                if((newReverseExact.getTime()/newReverseDirect.getTime())<params.getReverseDetour())
                 {
-                    newReverse2.setRoute(routeCount++);
-                    result.getItineraries().add(newReverse2);
-                    result.setDistanceTotal(result.getDistanceTotal() + newReverse2.getDistance());
-                    result.setTimeTotal(result.getTimeTotal() + newReverse2.getTime());
+                    newReverseExact.setRoute(routeCount++);
+                    result.getItineraries().add(newReverseExact);
+                    result.setDistanceTotal(result.getDistanceTotal() + newReverseExact.getDistance());
+                    result.setTimeTotal(result.getTimeTotal() + newReverseExact.getTime());
                     result.setItineraryQty(result.getItineraryQty() + 1);
                 }
                 else
                 {
-                    newReverse1.setRoute(routeCount++);
-                    result.getItineraries().add(newReverse1);
-                    result.setDistanceTotal(result.getDistanceTotal() + newReverse1.getDistance());
-                    result.setTimeTotal(result.getTimeTotal() + newReverse1.getTime());
+                    newReverseDirect.setRoute(routeCount++);
+                    result.getItineraries().add(newReverseDirect);
+                    result.setDistanceTotal(result.getDistanceTotal() + newReverseDirect.getDistance());
+                    result.setTimeTotal(result.getTimeTotal() + newReverseDirect.getTime());
                     result.setItineraryQty(result.getItineraryQty() + 1);
                 }
             }

@@ -30,8 +30,8 @@ public class RouteGeneration {
     public static void main(String[] args)
     {
         // ----- CONTROLS (set before use) -----------
-        String jsonInputFile = "C:\\Users\\User\\Documents\\matrix\\data\\zao_active_noU_mtrx.json";
-        String binInputFile = "C:\\Users\\User\\Documents\\matrix\\data\\zao_active_noU_mtrx.bin";
+        String jsonInputFile = "C:\\Users\\User\\Documents\\matrix\\data\\zao_active_U120_mtrx.json";
+        String binInputFile = "C:\\Users\\User\\Documents\\matrix\\data\\zao_active_U120_mtrx.bin";
 
         //OSM data
         String osmFile = "C:/Users/User/Downloads/RU-MOW.osm.pbf";
@@ -55,7 +55,7 @@ public class RouteGeneration {
         int radius = 500; // from cell to metro
 
 
-        String urlOutputFile = "C:\\Users\\User\\Documents\\matrix\\zao3.txt";
+        String urlOutputFile = "C:\\Users\\User\\Documents\\matrix\\zao411.txt";
         //String arrOutputFile = "C:\\Users\\User\\Documents\\GD\\a2.txt";
         //String outDir = "C:\\Users\\User\\Documents\\GD\\tracks\\a3";
         // ----- CONTROLS END ---------
@@ -165,7 +165,7 @@ public class RouteGeneration {
                     algoParams.setOnlyMetro(false);
                     algoParams.setMaxDetour(5);
                     algoParams.setPopToDiscard(20000);
-                    algoParams.setPop(true);
+                    algoParams.setPop(false);
                     algoParams.setReverseDetour(1.5);
                     rr = new V11().Calculate(wayPointList, matrix, algoParams, cellStopPattern);
                     break;
@@ -184,24 +184,24 @@ public class RouteGeneration {
 
                 case "V21":
                     algoParams.setCapacity(100);
-                    algoParams.setIterations(5);
+                    algoParams.setIterations(10);
                     algoParams.setSiteRadius(90);
-                    algoParams.setMaxDistance(15);
-                    algoParams.setMinTerminalGap(2);
-                    algoParams.setRemoveWithLessUnique(4);
+                    algoParams.setMaxDistance(20);
+                    //algoParams.setMinTerminalGap(2);
+                    algoParams.setRemoveWithLessUnique(2);
                     algoParams.setLog(true);
                     algoParams.setOnePair(true);
                     algoParams.setOnlyMetro(true);
                     algoParams.setMaxDetour(5);
-                    algoParams.setPopToDiscard(20000);
-                    algoParams.setPop(true);
-                    algoParams.setReverseDetour(1.5);
+                    //algoParams.setPopToDiscard(20000);
+                    algoParams.setPop(false);
+                    //algoParams.setReverseDetour(1.5);
                     rr = new V21().Calculate(wayPointList, matrix, algoParams, cellStopPattern);
                     break;
 
                 case "V90":
                     algoParams.setFrom(true);
-                    algoParams.setTo(true);
+                    algoParams.setTo(false);
                     algoParams.setLog(true);
                     algoParams.setOnlyMetro(false);
                     rr = DemoV90.Calculate(wayPointList, matrix, algoParams, cellStopPattern);
@@ -376,9 +376,9 @@ public class RouteGeneration {
 
                     TreeMap<KPIs, AlgoParams> resultMap011 = new TreeMap<>(new KPIcomparator());
 
-                    for (int i = 1; i < 6; i++)
-                        for (int j = 2; j < 6; j++)
-                            for (int k = 6; k < 7; k++)
+                    for (int i = 1; i < 5; i++)
+                        for (int j = 2; j < 5; j++)
+                            for (int k = 1; k < 8; k++)
                         {
                             algoParams = new AlgoParams();
                             algoParams.setSiteRadius(k*100);
@@ -410,6 +410,51 @@ public class RouteGeneration {
 
                     elapsedTime = System.currentTimeMillis() - elTime;
                     System.out.printf("\n%d variants calculated in: %d seconds", resultMap011.size(), elapsedTime / 1000);
+                    break;
+
+                case "V11":
+
+                    TreeMap<KPIs, AlgoParams> resultMap11 = new TreeMap<>(new KPIcomparator());
+
+                    for (int i = 1; i < 7; i++)
+                        for (int j = 1; j < 7; j++)
+                            {
+                                algoParams = new AlgoParams();
+
+                                algoParams.setSiteRadius(90);
+                                algoParams.setMinTerminalGap(i);
+                                algoParams.setRemoveWithLessUnique(j);
+                                algoParams.setLog(false);
+                                algoParams.setOnePair(true);
+                                algoParams.setOnlyMetro(false);
+                                algoParams.setMaxDetour(5);
+                                //algoParams.setPopToDiscard(20000);
+                                algoParams.setPop(false);
+                                algoParams.setReverseDetour(1.2);
+                                rr = new V11().Calculate(wayPointList, matrix, algoParams, cellStopPattern);
+
+                                // ----- EVALUATE ---------
+
+                                KPIs kpis = eval(rr, matrix, cellStopPattern);
+                                resultMap11.put(kpis, algoParams);
+                            }
+
+                    for (Map.Entry<KPIs, AlgoParams> me : resultMap11.entrySet()) {
+                        System.out.printf("\n\nFor params site: %d distance: %d  remove: %d",
+                                me.getValue().getSiteRadius(),
+                                me.getValue().getMinTerminalGap(),
+                                me.getValue().getRemoveWithLessUnique()
+                        );
+                        System.out.println("\nKPI #1: " + me.getKey().getCellToStop());
+                        System.out.println("KPI #2: " + me.getKey().getCellToMetroSimple());
+                        System.out.println("KPI #3: " + me.getKey().getCellToMetroFull());
+                        System.out.println(me.getKey().getRouteCount() + " trips");
+                        System.out.println(me.getKey().getStopCount() + " stops used");
+                        System.out.println("total distance: " + me.getKey().getTotalDistance() / 1000);
+                    }
+
+                    elapsedTime = System.currentTimeMillis() - elTime;
+                    System.out.printf("\n%d variants calculated in: %d seconds", resultMap11.size(), elapsedTime / 1000);
                     break;
 
                 default:

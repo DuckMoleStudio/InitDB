@@ -2,11 +2,16 @@ package routing.service.algos;
 
 import com.graphhopper.jsprit.core.algorithm.VehicleRoutingAlgorithm;
 import com.graphhopper.jsprit.core.algorithm.box.Jsprit;
+import com.graphhopper.jsprit.core.algorithm.state.StateManager;
 import com.graphhopper.jsprit.core.problem.Location;
 import com.graphhopper.jsprit.core.problem.VehicleRoutingProblem;
+import com.graphhopper.jsprit.core.problem.constraint.*;
 import com.graphhopper.jsprit.core.problem.job.Delivery;
+import com.graphhopper.jsprit.core.problem.job.Job;
 import com.graphhopper.jsprit.core.problem.job.Pickup;
 import com.graphhopper.jsprit.core.problem.job.Shipment;
+import com.graphhopper.jsprit.core.problem.misc.JobInsertionContext;
+import com.graphhopper.jsprit.core.problem.solution.SolutionCostCalculator;
 import com.graphhopper.jsprit.core.problem.solution.VehicleRoutingProblemSolution;
 import com.graphhopper.jsprit.core.problem.solution.route.VehicleRoute;
 import com.graphhopper.jsprit.core.problem.solution.route.activity.TimeWindow;
@@ -64,14 +69,62 @@ public class V21 extends Algo
         System.out.printf("\nFrom %d stops total selected %d to & %d from\n",
                 stopsOnly.size(),stopsTo.size(),stopsFrom.size());
 
+        Map<WayPoint,Integer> pointValueMap = new HashMap<>();
+
         // todo: this should be stream
+
         for(WayPoint stop: new ArrayList<>(stopsTo))
         {
             int popCount=0;
             for(FishnetCellVer cell: cellStopPattern.getCellsForStop().get(stop))
                 popCount+=cell.getHome();
-            if(popCount<8000) stopsTo.remove(stop);
+            if(popCount<6000) stopsTo.remove(stop);
+            else
+                pointValueMap.put(stop,popCount);
         }
+
+        int threshold = 1000;
+        List<WayPoint> newPickups = new ArrayList<>();
+        for(FishnetCellVer cell: cellStopPattern.getCells())
+        {
+            List<WayPoint> stops = cellStopPattern.getStopsForCell().get(cell);
+            if(stops.size()>0)
+            {
+                if(stops.size()==1)
+                {
+                    WayPoint stop = stops.get(0);
+                    if(cell.getHome()>threshold&&!newPickups.contains(stop)&&stop.getType()==WayPointType.STOP)
+                        newPickups.add(stops.get(0));
+                }
+                else
+                {
+                    boolean present = false;
+                    int maxPop = 0;
+                    WayPoint biggest = null;
+                    for(WayPoint stop: stops) {
+                        if (newPickups.contains(stop)) present = true;
+                        else {
+                            int pop = 0;
+                            for (FishnetCellVer cc : cellStopPattern.getCellsForStop().get(stop))
+                                pop += cc.getHome();
+                            if(pop>maxPop&&stop.getType()==WayPointType.STOP)
+                            {
+                                maxPop=pop;
+                                biggest=stop;
+                            }
+                        }
+                    }
+                   if(!present&&biggest!=null) newPickups.add(biggest);
+                }
+            }
+        }
+        List<WayPoint> realPickups = new ArrayList<>();
+        for(WayPoint stop: newPickups)
+        {
+            if(isTo(stop,terminalsAll))
+                realPickups.add(stop);
+        }
+
         for(WayPoint stop: new ArrayList<>(stopsFrom))
         {
             int popCount=0;
@@ -79,19 +132,23 @@ public class V21 extends Algo
                 popCount+=cell.getHome();
             if(popCount<8000) stopsFrom.remove(stop);
         }
-        System.out.printf("%d to & %d from left\n",stopsTo.size(),stopsFrom.size());
+        System.out.printf("%d to & %d from left\n",realPickups.size(),stopsFrom.size());
 
         List<Pickup> pickups = new ArrayList<>();
         //List<Delivery> deliveries = new ArrayList<>();
 
+        //int[] pointValues = new int[realPickups.size()+2];
 
-        for(WayPoint wp: stopsTo)
+        for(WayPoint wp: newPickups)
         {
-            pickups.add(Pickup.Builder
+            Pickup pickup = Pickup.Builder
                     .newInstance(String.valueOf(wayPoints.indexOf(wp)))
                     .addSizeDimension(0,1)
                     .setLocation(Location.newInstance(String.valueOf(wayPoints.indexOf(wp))))
-                    .build());
+                    .build();
+            pickups.add(pickup);
+            //pointValues[pickup.getIndex()]=pointValueMap.get(wp);
+
         }
 
 /*
@@ -136,7 +193,427 @@ public class V21 extends Algo
 
         VehicleRoutingProblem problem = vrpBuilder.build();
 
+        StateManager stateManager = new StateManager(problem);
+        ConstraintManager constraintManager = new ConstraintManager(problem,stateManager);
+
+
+
+
+        // CONSTRAINTS
+        SoftActivityConstraint softStraight = new SoftActivityConstraint() {
+            @Override
+            public double getCosts(JobInsertionContext iFacts,
+                                   TourActivity prevAct,
+                                   TourActivity newAct,
+                                   TourActivity nextAct,
+                                   double prevActDepTime) {
+                WayPoint endWP = wayPoints.get(Integer.parseInt(iFacts.getNewVehicle().getStartLocation().getId()));
+                WayPoint prevWP = wayPoints.get(Integer.parseInt(prevAct.getLocation().getId()));
+                WayPoint newWP = wayPoints.get(Integer.parseInt(newAct.getLocation().getId()));
+                WayPoint nextWP = wayPoints.get(Integer.parseInt(nextAct.getLocation().getId()));
+
+                if(prevWP.equals(endWP)&&nextWP.equals(endWP))
+                    return 0;
+
+                double prevDist = TimeBetweenMap(prevWP,nextWP,matrix);
+                double newDist = TimeBetweenMap(newWP,nextWP,matrix);
+                double newDistTo = TimeBetweenMap(prevWP,newWP,matrix);
+                //double newDistToStart = TimeBetweenMap(newWP,endWP,matrix);
+                //double nextDistToStart = TimeBetweenMap(nextWP,endWP,matrix);
+
+                //double newDistFrom = TimeBetweenMap(newWP,prevWP,matrix);
+                //double nextDist = TimeBetweenMap(nextWP,endWP,matrix);
+
+                if(!prevWP.equals(endWP)) // not after start
+                {
+                    if((newDistTo+newDist-prevDist)<1000*params.getMaxDetour())
+                    {
+                        goodInserts++;
+                        return -10000;
+                    }
+                    else
+                    {
+                        badInserts++;
+                        return 10000;
+                    }
+                }
+                else // between start and 1st
+                {
+                    badInserts++;
+                    return 1000000;
+                }
+            }
+        };
+
+        SoftActivityConstraint farTerminal = new SoftActivityConstraint() {
+            @Override
+            public double getCosts(JobInsertionContext iFacts,
+                                   TourActivity prevAct,
+                                   TourActivity newAct,
+                                   TourActivity nextAct,
+                                   double prevActDepTime) {
+                WayPoint endWP = wayPoints.get(Integer.parseInt(iFacts.getNewVehicle().getStartLocation().getId()));
+                WayPoint prevWP = wayPoints.get(Integer.parseInt(prevAct.getLocation().getId()));
+                WayPoint newWP = wayPoints.get(Integer.parseInt(newAct.getLocation().getId()));
+                WayPoint nextWP = wayPoints.get(Integer.parseInt(nextAct.getLocation().getId()));
+
+                if(prevWP.equals(endWP)&&nextWP.equals(endWP)) {
+                    double tt = TimeBetweenMap(newWP, endWP, matrix);
+                    if (tt < 5*60000)
+                        return tt * (-1);
+                }
+                return 0;
+            }
+        };
+
+        SoftRouteConstraint preferStraightRoutes = new SoftRouteConstraint() {
+            @Override
+            public double getCosts(JobInsertionContext iFacts) {
+                VehicleRoute route = iFacts.getRoute();
+                List<TourActivity> activities =  route.getActivities();
+
+                if(activities.size()>0) {
+                    double actTime = 0;
+                    double shortTime = problem.getTransportCosts().getTransportCost(route.getStart().getLocation(),
+                            activities.get(0).getLocation(), 0, route.getDriver(),
+                            route.getVehicle());
+
+                    TourActivity prevAct = route.getEnd();
+
+                    for (int i = activities.size() - 1; i >= 0; i--) {
+                        actTime += problem.getTransportCosts().getTransportCost(activities.get(i).getLocation(),
+                                prevAct.getLocation(), prevAct.getEndTime(), route.getDriver(),
+                                route.getVehicle()); // cur to prev
+                        prevAct = activities.get(i);
+                    }
+
+                    return (actTime / shortTime) * 600000;
+                }
+                return 0;
+            }
+        };
+
+        SoftRouteConstraint complyToKPI2 = new SoftRouteConstraint() {
+            @Override
+            public double getCosts(JobInsertionContext iFacts) {
+                VehicleRoute route = iFacts.getRoute();
+                List<TourActivity> activities =  route.getActivities();
+
+                if(activities.size()>0) {
+                    double curTime = 0;
+                    double cost = 0;
+                    TourActivity prevAct = route.getEnd();
+                    for (int i = activities.size()-1; i >=0 ; i--) {
+                        curTime+=problem.getTransportCosts().getTransportCost(activities.get(i).getLocation(),
+                                prevAct.getLocation(), prevAct.getEndTime(), route.getDriver(),
+                                route.getVehicle()); // cur to prev
+
+                        if(curTime>5*60000)
+                            cost+=1000000;
+
+                        prevAct = activities.get(i);
+                    }
+                    return cost;
+                }
+                return 0;
+            }
+        };
+
+        SoftRouteConstraint manyStopsAreGood = new SoftRouteConstraint() {
+            @Override
+            public double getCosts(JobInsertionContext iFacts) {
+                VehicleRoute route = iFacts.getRoute();
+                List<TourActivity> activities = route.getActivities();
+
+                return activities.size() * 1000000 * (-1);
+            }
+        };
+
+        SoftActivityConstraint straightestRouteSoft = new SoftActivityConstraint() {
+
+            @Override
+            public double getCosts(JobInsertionContext iFacts,
+                                               TourActivity prevAct,
+                                               TourActivity newAct,
+                                               TourActivity nextAct,
+                                               double prevActDepTime) {
+                WayPoint endWP = wayPoints.get(Integer.parseInt(iFacts.getNewVehicle().getStartLocation().getId()));
+                WayPoint prevWP = wayPoints.get(Integer.parseInt(prevAct.getLocation().getId()));
+                WayPoint newWP = wayPoints.get(Integer.parseInt(newAct.getLocation().getId()));
+                WayPoint nextWP = wayPoints.get(Integer.parseInt(nextAct.getLocation().getId()));
+
+                if(prevWP.equals(endWP)&&nextWP.equals(endWP))
+                    return 0;
+
+                double prevDist = TimeBetweenMap(prevWP,nextWP,matrix);
+                double newDist = TimeBetweenMap(newWP,nextWP,matrix);
+                double newDistTo = TimeBetweenMap(prevWP,newWP,matrix);
+                //double newDistToStart = TimeBetweenMap(newWP,endWP,matrix);
+                //double nextDistToStart = TimeBetweenMap(nextWP,endWP,matrix);
+
+                //double newDistFrom = TimeBetweenMap(newWP,prevWP,matrix);
+                //double nextDist = TimeBetweenMap(nextWP,endWP,matrix);
+
+                if(!prevWP.equals(endWP)) // not after start
+                {
+                    if((newDistTo+newDist-prevDist)<1000*params.getMaxDetour()&&newDist<prevDist)
+                    {
+                        goodInserts++;
+                        return -1000000;
+                    }
+                    else
+                    {
+                        badInserts++;
+                        return 0;
+                    }
+                }
+                else // between start and 1st
+                {
+                    badInserts++;
+                    return 10000000;
+                }
+
+            }
+        };
+
+        SoftActivityConstraint straighterRouteSoft = new SoftActivityConstraint() {
+
+            @Override
+            public double getCosts(JobInsertionContext iFacts,
+                                   TourActivity prevAct,
+                                   TourActivity newAct,
+                                   TourActivity nextAct,
+                                   double prevActDepTime) {
+                WayPoint endWP = wayPoints.get(Integer.parseInt(iFacts.getNewVehicle().getStartLocation().getId()));
+                WayPoint prevWP = wayPoints.get(Integer.parseInt(prevAct.getLocation().getId()));
+                WayPoint newWP = wayPoints.get(Integer.parseInt(newAct.getLocation().getId()));
+                WayPoint nextWP = wayPoints.get(Integer.parseInt(nextAct.getLocation().getId()));
+
+                if(prevWP.equals(endWP)&&nextWP.equals(endWP))
+                    return 0;
+
+                double prevDist = TimeBetweenMap(prevWP,nextWP,matrix);
+                double newDist = TimeBetweenMap(newWP,nextWP,matrix);
+                double newDistTo = TimeBetweenMap(prevWP,newWP,matrix);
+                //double newDistToStart = TimeBetweenMap(newWP,endWP,matrix);
+                //double nextDistToStart = TimeBetweenMap(nextWP,endWP,matrix);
+
+                //double newDistFrom = TimeBetweenMap(newWP,prevWP,matrix);
+                //double nextDist = TimeBetweenMap(nextWP,endWP,matrix);
+
+                if(!prevWP.equals(endWP)) // not after start
+                {
+                    if(newDistTo<prevDist&&newDist<prevDist)
+                    {
+                        goodInserts++;
+                        return -1000000;
+                    }
+                    else
+                    {
+                        badInserts++;
+                        return 0;
+                    }
+                }
+                else // between start and 1st
+                {
+                    badInserts++;
+                    return 10000000;
+                }
+
+            }
+        };
+
+
+        HardActivityConstraint straightestRoute = new HardActivityConstraint() {
+
+            @Override
+            public ConstraintsStatus fulfilled(JobInsertionContext iFacts,
+                                   TourActivity prevAct,
+                                   TourActivity newAct,
+                                   TourActivity nextAct,
+                                   double prevActDepTime) {
+                WayPoint endWP = wayPoints.get(Integer.parseInt(iFacts.getNewVehicle().getStartLocation().getId()));
+                WayPoint prevWP = wayPoints.get(Integer.parseInt(prevAct.getLocation().getId()));
+                WayPoint newWP = wayPoints.get(Integer.parseInt(newAct.getLocation().getId()));
+                WayPoint nextWP = wayPoints.get(Integer.parseInt(nextAct.getLocation().getId()));
+
+                if(prevWP.equals(endWP)&&nextWP.equals(endWP))
+                    return ConstraintsStatus.FULFILLED;
+
+                double prevDist = TimeBetweenMap(prevWP,nextWP,matrix);
+                double newDist = TimeBetweenMap(newWP,nextWP,matrix);
+                double newDistTo = TimeBetweenMap(prevWP,newWP,matrix);
+                //double newDistToStart = TimeBetweenMap(newWP,endWP,matrix);
+                //double nextDistToStart = TimeBetweenMap(nextWP,endWP,matrix);
+
+                //double newDistFrom = TimeBetweenMap(newWP,prevWP,matrix);
+                //double nextDist = TimeBetweenMap(nextWP,endWP,matrix);
+
+                if(!prevWP.equals(endWP)) // not after start
+                {
+                    if((newDistTo+newDist-prevDist)<1000*params.getMaxDetour()&&newDist<prevDist)
+                    {
+                        goodInserts++;
+                        return ConstraintsStatus.FULFILLED;
+                    }
+                    else
+                    {
+                        badInserts++;
+                        return ConstraintsStatus.NOT_FULFILLED;
+                    }
+                }
+                else // between start and 1st
+                {
+                    badInserts++;
+                    return ConstraintsStatus.NOT_FULFILLED;
+                }
+/*
+                {
+                    if((newDistTo+newDist-prevDist)<1000*params.getMaxDetour())
+                    {
+                        goodInserts++;
+                        return ConstraintsStatus.FULFILLED;
+                    }
+                    else
+                    {
+                        if((newDistToStart>newDist)&&(newDistToStart>nextDistToStart))
+                        {
+                            goodInserts++;
+                            return ConstraintsStatus.FULFILLED;
+                        }
+                        badInserts++;
+                        return ConstraintsStatus.NOT_FULFILLED;
+                    }
+                }
+
+ */
+            }
+        };
+
+        HardActivityConstraint straighterRoute = new HardActivityConstraint() {
+
+            @Override
+            public ConstraintsStatus fulfilled(JobInsertionContext iFacts,
+                                               TourActivity prevAct,
+                                               TourActivity newAct,
+                                               TourActivity nextAct,
+                                               double prevActDepTime) {
+                WayPoint endWP = wayPoints.get(Integer.parseInt(iFacts.getNewVehicle().getStartLocation().getId()));
+                WayPoint prevWP = wayPoints.get(Integer.parseInt(prevAct.getLocation().getId()));
+                WayPoint newWP = wayPoints.get(Integer.parseInt(newAct.getLocation().getId()));
+                WayPoint nextWP = wayPoints.get(Integer.parseInt(nextAct.getLocation().getId()));
+
+                if(prevWP.equals(endWP)&&nextWP.equals(endWP))
+                    return ConstraintsStatus.FULFILLED;
+
+                double prevDist = TimeBetweenMap(prevWP,nextWP,matrix);
+                double newDist = TimeBetweenMap(newWP,nextWP,matrix);
+                double newDistTo = TimeBetweenMap(prevWP,newWP,matrix);
+                //double newDistToStart = TimeBetweenMap(newWP,endWP,matrix);
+                //double nextDistToStart = TimeBetweenMap(nextWP,endWP,matrix);
+
+                //double newDistFrom = TimeBetweenMap(newWP,prevWP,matrix);
+                //double nextDist = TimeBetweenMap(nextWP,endWP,matrix);
+
+                if(!prevWP.equals(endWP)) // not after start
+                {
+                    if((newDistTo+newDist)/prevDist<(1+prevDist/200000))
+                    {
+                        goodInserts++;
+                        return ConstraintsStatus.FULFILLED;
+                    }
+                    else
+                    {
+                        badInserts++;
+                        return ConstraintsStatus.NOT_FULFILLED;
+                    }
+                }
+                else // between start and 1st
+                {
+                    badInserts++;
+                    return ConstraintsStatus.NOT_FULFILLED;
+                }
+            }
+        };
+
+        constraintManager.addConstraint(straightestRoute, ConstraintManager.Priority.HIGH);
+        //constraintManager.addConstraint(farTerminal);
+        //constraintManager.addConstraint(straighterRouteSoft);
+        //constraintManager.addConstraint(preferStraightRoutes);
+        //constraintManager.addConstraint(complyToKPI2);
+        //constraintManager.addConstraint(manyStopsAreGood);
+
+        // OBJECTIVE FUNCTION
+        SolutionCostCalculator customSolutionCostCalculator1 = new SolutionCostCalculator() {
+            @Override
+            public double getCosts(VehicleRoutingProblemSolution solution) {
+                double costs = 0.;
+
+                for (VehicleRoute route : solution.getRoutes()) {
+                    //costs += route.getVehicle().getType().getVehicleCostParams().fix;
+                    List<TourActivity> activities =  route.getActivities();
+                    double curTime = 0;
+                    TourActivity prevAct = route.getEnd();
+                    for (int i = activities.size()-1; i >=0 ; i--) {
+                       curTime+=problem.getTransportCosts().getTransportCost(activities.get(i).getLocation(),
+                               prevAct.getLocation(), prevAct.getEndTime(), route.getDriver(),
+                               route.getVehicle()); // cur to prev
+
+                        costs+=curTime; //*pointValues[activities.get(i).getIndex()];
+                        //if(curTime>5*60000) costs+=curTime*2;
+
+                       prevAct = activities.get(i);
+                    }
+
+                    costs+=problem.getTransportCosts().getTransportCost(route.getStart().getLocation(),
+                            activities.get(0).getLocation(), prevAct.getEndTime(), route.getDriver(),
+                            route.getVehicle());
+                    //*pointValues[activities.get(0).getIndex()]; // start to 1
+                }
+                for(Job j : solution.getUnassignedJobs()){
+                    costs += 10*60000;//*pointValues[j.getIndex()];
+                }
+                //costs+=solution.getRoutes().size()*4*60000;
+                return costs;
+            }
+        };
+
+        SolutionCostCalculator customSolutionCostCalculator2 = new SolutionCostCalculator() {
+            @Override
+            public double getCosts(VehicleRoutingProblemSolution solution) {
+                double costs = 0.;
+
+                for (VehicleRoute route : solution.getRoutes()) {
+                    //costs += route.getVehicle().getType().getVehicleCostParams().fix;
+                    List<TourActivity> activities =  route.getActivities();
+                    double curTime = 0;
+                    TourActivity prevAct = route.getEnd();
+                    for (int i = activities.size()-1; i >=0 ; i--) {
+                        curTime+=problem.getTransportCosts().getTransportCost(activities.get(i).getLocation(),
+                                prevAct.getLocation(), prevAct.getEndTime(), route.getDriver(),
+                                route.getVehicle()); // cur to prev
+                        if(curTime>8*60000)
+                        costs+=curTime; //*pointValues[activities.get(i).getIndex()];
+                        prevAct = activities.get(i);
+                    }
+
+                    costs+=problem.getTransportCosts().getTransportCost(route.getStart().getLocation(),
+                            activities.get(0).getLocation(), prevAct.getEndTime(), route.getDriver(),
+                            route.getVehicle())*0.1;
+                    //*pointValues[activities.get(0).getIndex()]; // start to 1
+                }
+                for(Job j : solution.getUnassignedJobs()){
+                    costs += 0.02*60000*params.getMaxDistance();//*pointValues[j.getIndex()];
+                }
+                return costs;
+            }
+        };
+
+        //builder.setObjectiveFunction(costCalculator);
+
         VehicleRoutingAlgorithm algorithm = Jsprit.Builder.newInstance(problem)
+                .setStateAndConstraintManager(stateManager,constraintManager)
+                .setObjectiveFunction(customSolutionCostCalculator1)
                 .setProperty(Jsprit.Parameter.THREADS, "4")
                 .buildAlgorithm();
         algorithm.setMaxIterations(params.getIterations());
@@ -175,6 +652,10 @@ public class V21 extends Algo
                 }
                 prevAct = act;
             }
+
+            jobId = route.getEnd().getLocation().getId();
+            curItinerary.getWayPointList().add(wayPointList.get(Integer.parseInt(jobId)));
+
             itinerariesJS.add(curItinerary);
         }
 
@@ -186,12 +667,14 @@ public class V21 extends Algo
             if (wp.getType() == WayPointType.METRO_TERMINAL)
                 terminalsMetro.add(wp);
 
-        for (Itinerary itineraryJS : itinerariesJS)
+            int routeCount = 1;
+
+        for (Itinerary itinerary : itinerariesJS)
         {
-            /*
+
             WayPoint start = itinerary.getFirst();
             WayPoint end = itinerary.getLast();
-            itinerary.setName("***  " + start.getDescription() + " - " + end.getDescription());
+            itinerary.setName(itinerary.getWayPointList().get(1).getDescription() + " - " + end.getDescription());
 
 
             for (WayPoint wp : itinerary.getWayPointList()) {
@@ -219,14 +702,14 @@ public class V21 extends Algo
                         TimeBetweenMap(end, start, matrix));
             }
 
-            FillLink(itinerary, 50, false, 0);
+            FillLink(itinerary,  false, 0);
 
 
-             */
-            Itinerary itinerary = buildItinerary(itineraryJS.getWayPointList());
+
+            //Itinerary itinerary = buildItinerary(itineraryJS.getWayPointList());
 
             itinerary.setId(itCount++);
-            //itinerary.setRoute(routeCount++);
+            itinerary.setRoute(routeCount++);
             itinerary.setDir(0);
 
             result.getItineraries().add(itinerary);
@@ -237,6 +720,8 @@ public class V21 extends Algo
 
         if(params.isLog())
             printKPI(eval(result, matrix, cellStopPattern), "BEFORE:");
+
+        System.out.printf("\nGood %d, Bad %d\n",goodInserts,badInserts);
 
 
         // DISCARD REDUNDANT
@@ -267,6 +752,7 @@ public class V21 extends Algo
 
         // FIND PAIRS OR CREATE REVERSE
 
+        /*
         int routeCount = 1;
         for(Itinerary dirForward: new ArrayList<>(result.getItineraries()))
         {
@@ -311,6 +797,8 @@ public class V21 extends Algo
         if(params.isLog())
             printKPI(eval(result, matrix, cellStopPattern), "AFTER LINKING:");
 
+
+         */
 
 
 

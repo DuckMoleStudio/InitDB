@@ -53,6 +53,9 @@ public abstract class Algo
 
     protected static CellStopPattern cellStopPattern;
 
+    int goodInserts = 0;
+    int badInserts = 0;
+
     public static int itCount=0;
 
     public abstract Result Calculate(
@@ -184,8 +187,12 @@ public abstract class Algo
          * get a vehicle type-builder and build a type
          */
         VehicleTypeImpl.Builder vehicleTypeBuilder = VehicleTypeImpl.Builder.newInstance("Moscow Bus Type")
-                .addCapacityDimension(0, params.getCapacity());
+                .addCapacityDimension(0, params.getCapacity())
+                .setCostPerDistance(0) // for custom objective function
+                .setCostPerTransportTime(1); // for custom objective function
         vehicleTypeMoscowBus = vehicleTypeBuilder.build();
+
+
     }
 
     protected static void FillLink(Itinerary itinerary, boolean filter, int repCount)
