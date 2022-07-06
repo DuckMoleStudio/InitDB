@@ -371,22 +371,28 @@ public class Calculation {
         hopper.setOSMFile(osmFile);
         hopper.setGraphHopperLocation(dir);
 
-        hopper.getEncodingManagerBuilder().add(new BusFlagEncoder(5,5,1));
+        //hopper.getEncodingManagerBuilder().add(new BusFlagEncoder(5,5,1));
         hopper.getEncodingManagerBuilder().add(new NGPTFlagEncoder(5,5,1));
 
         hopper.setProfiles(
                 new Profile("ngpt1").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(false),
-                new Profile("ngpt2").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60),
-                new Profile("bus1").setVehicle("bus").setWeighting("fastest").setTurnCosts(false),
-                new Profile("bus2").setVehicle("bus").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60),
+                new Profile("ngpt2").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true),
+                new Profile("ngpt3").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60),
+                new Profile("ngpt4").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 120),
+                new Profile("ngpt5").setVehicle("ngpt").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 240),
+                //new Profile("bus1").setVehicle("bus").setWeighting("fastest").setTurnCosts(false),
+                //new Profile("bus2").setVehicle("bus").setWeighting("fastest").setTurnCosts(true),
                 new Profile("car1").setVehicle("car").setWeighting("fastest").setTurnCosts(false),
-                new Profile("car2").setVehicle("car").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 60)
+                new Profile("car2").setVehicle("car").setWeighting("fastest").setTurnCosts(true).putHint("u_turn_costs", 10)
         );
         hopper.getCHPreparationHandler().setCHProfiles(
                 new CHProfile("ngpt1"),
                 new CHProfile("ngpt2"),
-                new CHProfile("bus1"),
-                new CHProfile("bus2"),
+                new CHProfile("ngpt3"),
+                new CHProfile("ngpt4"),
+                new CHProfile("ngpt5"),
+                //new CHProfile("bus1"),
+                //new CHProfile("bus2"),
                 new CHProfile("car1"),
                 new CHProfile("car2")
         );
@@ -472,7 +478,7 @@ public class Calculation {
                         double distance;
 
                         GHRequest req = new GHRequest().setAlgorithm(Parameters.Algorithms.ASTAR_BI);
-                        req.setProfile("ngpt1");
+                        req.setProfile("ngpt3");
                         req.addPoint(new GHPoint(startLat, startLon));
                         req.addPoint(new GHPoint(destLat, destLon));
 

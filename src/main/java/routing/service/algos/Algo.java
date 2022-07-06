@@ -1,20 +1,6 @@
 package routing.service.algos;
 
-import com.graphhopper.jsprit.core.algorithm.VehicleRoutingAlgorithm;
-import com.graphhopper.jsprit.core.algorithm.box.Jsprit;
-import com.graphhopper.jsprit.core.problem.Location;
-import com.graphhopper.jsprit.core.problem.VehicleRoutingProblem;
-import com.graphhopper.jsprit.core.problem.cost.VehicleRoutingTransportCosts;
-import com.graphhopper.jsprit.core.problem.job.Shipment;
-import com.graphhopper.jsprit.core.problem.solution.VehicleRoutingProblemSolution;
-import com.graphhopper.jsprit.core.problem.solution.route.VehicleRoute;
-import com.graphhopper.jsprit.core.problem.solution.route.activity.TimeWindow;
-import com.graphhopper.jsprit.core.problem.solution.route.activity.TourActivity;
-import com.graphhopper.jsprit.core.problem.vehicle.VehicleImpl;
 import com.graphhopper.jsprit.core.problem.vehicle.VehicleType;
-import com.graphhopper.jsprit.core.problem.vehicle.VehicleTypeImpl;
-import com.graphhopper.jsprit.core.util.Solutions;
-import com.graphhopper.jsprit.core.util.VehicleRoutingTransportCostsMatrix;
 import entity.FishnetCellVer;
 import routing.entity.WayPoint;
 import routing.entity.WayPointType;
@@ -23,12 +9,10 @@ import routing.entity.eval.CellStopPattern;
 import routing.entity.eval.KPIs;
 import routing.entity.result.Itinerary;
 import routing.entity.result.Result;
-import routing.entity.result.TrackList;
 import routing.entity.storage.Hop;
 import routing.entity.storage.MatrixElement;
 import routing.entity.storage.MatrixLineMap;
 import routing.entity.storage.TimeDistancePair;
-import routing.service.Matrix;
 
 import java.util.*;
 
@@ -48,13 +32,7 @@ public abstract class Algo
     protected static List<WayPoint> terminalsMetro = new ArrayList<>();
     protected static List<WayPoint> stopsOnly = new ArrayList<>();
 
-    protected static VehicleRoutingTransportCosts costMatrix;
-    protected static VehicleType vehicleTypeMoscowBus;
-
     protected static CellStopPattern cellStopPattern;
-
-    int goodInserts = 0;
-    int badInserts = 0;
 
     public static int itCount=0;
 
@@ -149,51 +127,6 @@ public abstract class Algo
        if(!params.isOnlyMetro())
            terminalsAll.addAll(terminalsOnly);
    }
-
-    protected static void InitJsprit()
-    {
-        //define a matrix-builder building a NON-symmetric matrix
-        VehicleRoutingTransportCostsMatrix.Builder costMatrixBuilder = VehicleRoutingTransportCostsMatrix
-                .Builder.newInstance(false);
-
-        // ---- transfer our matrix to jsprit matrix ----
-        for(int jj=0;jj<wayPoints.size();jj++)
-            for(int kk=0;kk<wayPoints.size();kk++)
-                if(jj!=kk)
-                {
-                    costMatrixBuilder.addTransportDistance(
-                            String.valueOf(jj),
-                            String.valueOf(kk),
-                            Matrix.DistanceBetweenMap(wayPoints.get(jj),wayPoints.get(kk),matrix));
-                    costMatrixBuilder.addTransportTime(
-                            String.valueOf(jj),
-                            String.valueOf(kk),
-                            Matrix.TimeBetweenMap(wayPoints.get(jj),wayPoints.get(kk),matrix));
-                }
-                else
-                {
-                    costMatrixBuilder.addTransportDistance(
-                            String.valueOf(jj),
-                            String.valueOf(kk),
-                            Double.POSITIVE_INFINITY);
-                    costMatrixBuilder.addTransportTime(
-                            String.valueOf(jj),
-                            String.valueOf(kk),
-                            Double.POSITIVE_INFINITY);
-                }
-        costMatrix = costMatrixBuilder.build();
-
-        /*
-         * get a vehicle type-builder and build a type
-         */
-        VehicleTypeImpl.Builder vehicleTypeBuilder = VehicleTypeImpl.Builder.newInstance("Moscow Bus Type")
-                .addCapacityDimension(0, params.getCapacity())
-                .setCostPerDistance(0) // for custom objective function
-                .setCostPerTransportTime(1); // for custom objective function
-        vehicleTypeMoscowBus = vehicleTypeBuilder.build();
-
-
-    }
 
     protected static void FillLink(Itinerary itinerary, boolean filter, int repCount)
     {
@@ -317,112 +250,6 @@ public abstract class Algo
         //System.out.println("-- "+it.getId());
     }
 
-    protected static List<Itinerary> jspritDeliveryMaxTime(
-            List<WayPoint> starts,
-            List<WayPoint> pickups,
-            WayPoint destination,
-            double maxTime)
-    {
-        List<Shipment> shipments = new ArrayList<>();
-        for(WayPoint c_wp: pickups)
-        {
-            shipments.add(Shipment.Builder
-                    .newInstance(String.valueOf(wayPoints.indexOf(c_wp)))
-                    .addSizeDimension(0, 1)
-                    .setPickupLocation(Location.newInstance(String.valueOf(wayPoints.indexOf(c_wp))))
-                    .setDeliveryLocation(Location.newInstance
-                            (String.valueOf(wayPoints.indexOf(destination))))
-                    .setPickupServiceTime(1)
-                    .setDeliveryServiceTime(1)
-                    .setDeliveryTimeWindow(TimeWindow.newInstance(0,maxTime))
-                    .build());
-        }
-
-        //get a vehicle-builder and build vehicles
-
-        List<VehicleImpl> vehicles = new ArrayList<>();
-
-        int cc = 0;
-
-        for (WayPoint wp : starts)
-        {
-            String routeName = wp.getDescription() + " " + cc++;
-            VehicleImpl.Builder vehicleBuilder = VehicleImpl.Builder.newInstance(routeName);
-            String start = String.valueOf(wayPoints.indexOf(wp));
-            vehicleBuilder.setStartLocation(Location.newInstance(start));
-            vehicleBuilder.setLatestArrival(maxTime);
-            vehicleBuilder.setType(vehicleTypeMoscowBus);
-            vehicles.add(vehicleBuilder.build());
-        }
-
-
-        // --- set up routing problem
-        VehicleRoutingProblem.Builder vrpBuilder = VehicleRoutingProblem.Builder.newInstance()
-                .setFleetSize(VehicleRoutingProblem.FleetSize.INFINITE)
-                .setRoutingCost(costMatrix);
-
-        // ----- add cars and services (points) to the problem
-
-        for (VehicleImpl vehicle : vehicles)
-            vrpBuilder.addVehicle(vehicle);
-        for (Shipment ss : shipments)
-            vrpBuilder.addJob(ss);
-
-
-        VehicleRoutingProblem problem = vrpBuilder.build();
-
-        VehicleRoutingAlgorithm algorithm = Jsprit.Builder.newInstance(problem)
-                .setProperty(Jsprit.Parameter.THREADS, "4")
-                .buildAlgorithm();
-        algorithm.setMaxIterations(params.getIterations());
-
-        //and search a solution
-
-        Collection<VehicleRoutingProblemSolution> solutions = algorithm.searchSolutions();
-
-        //get the best
-
-        VehicleRoutingProblemSolution bestSolution = Solutions.bestOf(solutions);
-
-        //SolutionPrinter.print(problem, bestSolution, SolutionPrinter.Print.VERBOSE);
-
-        // --- parse solutions to itineraries
-        List<Itinerary> itinerariesJS = new ArrayList<>();
-
-        List<VehicleRoute> routesJS = new ArrayList<VehicleRoute>(bestSolution.getRoutes());
-        Collections.sort(routesJS, new com.graphhopper.jsprit.core.util.VehicleIndexComparator());
-
-        for (VehicleRoute route : routesJS) {
-            Itinerary curItinerary = new Itinerary();
-
-            TourActivity prevAct = route.getStart();
-            String jobId;
-            jobId = prevAct.getLocation().getId();
-            curItinerary.getWayPointList().add(wayPoints.get(Integer.parseInt(jobId)));
-            String prevName = "";
-
-            for (TourActivity act : route.getActivities())
-            {
-                if (act instanceof TourActivity.JobActivity)
-                {
-                    // main writing
-                    if (act.getName().equals("deliverShipment")) {
-                        if (!prevName.equals("deliverShipment")) {
-                            curItinerary.getWayPointList().add(destination);
-                            prevName = "deliverShipment";
-                        }
-                    } else {
-                        jobId = ((TourActivity.JobActivity) act).getJob().getId();
-                        curItinerary.getWayPointList().add(wayPoints.get(Integer.parseInt(jobId)));
-                        prevName = act.getName();
-                    }
-                }
-            }
-            itinerariesJS.add(curItinerary);
-        }
-
-        return itinerariesJS;
-    }
 
     protected static void DiscardByStops()
     {

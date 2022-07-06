@@ -16,7 +16,6 @@ import routing.service.algos.*;
 import utils.HibernateSessionFactoryUtil;
 
 import java.sql.Date;
-import java.time.LocalTime;
 import java.util.*;
 
 import static org.locationtech.jts.algorithm.Centroid.getCentroid;
@@ -30,8 +29,8 @@ public class RouteGeneration {
     public static void main(String[] args)
     {
         // ----- CONTROLS (set before use) -----------
-        String jsonInputFile = "C:\\Users\\User\\Documents\\matrix\\data\\zao_active_U120_mtrx.json";
-        String binInputFile = "C:\\Users\\User\\Documents\\matrix\\data\\zao_active_U120_mtrx.bin";
+        String jsonInputFile = "C:\\Users\\User\\Documents\\matrix\\data\\zao_all_U60_mtrx.json";
+        String binInputFile = "C:\\Users\\User\\Documents\\matrix\\data\\zao_all_U60_mtrx.bin";
 
         //OSM data
         String osmFile = "C:/Users/User/Downloads/RU-MOW.osm.pbf";
@@ -39,13 +38,9 @@ public class RouteGeneration {
 
 
         String algo = "V21"; // algo to perform
-        //LocalTime workStart = LocalTime.parse("06:00");
-        //LocalTime workEnd = LocalTime.parse("22:00");
-        boolean isGood = false; // with access from R curbside, for GPX. True for "good" files, false for rest
-
         boolean single = true;
 
-        boolean dbExport = false; // export to postgres
+        boolean dbExport = true; // export to postgres
         boolean newVersion = true;
         boolean editVersion = false;
         int useVersion = 6;
@@ -56,8 +51,6 @@ public class RouteGeneration {
 
 
         String urlOutputFile = "C:\\Users\\User\\Documents\\matrix\\zao411.txt";
-        //String arrOutputFile = "C:\\Users\\User\\Documents\\GD\\a2.txt";
-        //String outDir = "C:\\Users\\User\\Documents\\GD\\tracks\\a3";
         // ----- CONTROLS END ---------
 
 
@@ -136,15 +129,6 @@ public class RouteGeneration {
                     rr = LinkV00.Calculate(wayPointList, matrix, algoParams, cellStopPattern);
                     break;
 
-                case "V01":
-                    algoParams.setSiteRadius(200);
-                    algoParams.setMinTerminalGap(7);
-                    algoParams.setRemoveWithLessUnique(5);
-                    algoParams.setLog(true);
-                    algoParams.setOnePair(true);
-                    algoParams.setOnlyMetro(false);
-                    rr = PointV01.Calculate(wayPointList, matrix, algoParams, cellStopPattern);
-                    break;
 
                 case "V011":
                     algoParams.setSiteRadius(100);
@@ -170,27 +154,15 @@ public class RouteGeneration {
                     rr = new V11().Calculate(wayPointList, matrix, algoParams, cellStopPattern);
                     break;
 
-                case "V12":
-                    algoParams.setSiteRadius(90);
-                    algoParams.setMinDistance(7);
-                    algoParams.setMaxDistance(10);
-                    algoParams.setRemoveWithLessUnique(5);
-                    algoParams.setLog(true);
-                    algoParams.setOnePair(true);
-                    algoParams.setOnlyMetro(false);
-                    algoParams.setMaxDetour(5);
-                    rr = new V12().Calculate(wayPointList, matrix, algoParams, cellStopPattern);
-                    break;
-
                 case "V21":
                     algoParams.setCapacity(100);
                     algoParams.setIterations(10);
                     algoParams.setSiteRadius(90);
                     algoParams.setMaxDistance(20);
                     //algoParams.setMinTerminalGap(2);
-                    algoParams.setRemoveWithLessUnique(2);
+                    algoParams.setRemoveWithLessUnique(1);
                     algoParams.setLog(true);
-                    algoParams.setOnePair(true);
+                    //algoParams.setOnePair(true);
                     algoParams.setOnlyMetro(true);
                     algoParams.setMaxDetour(5);
                     //algoParams.setPopToDiscard(20000);
@@ -207,54 +179,6 @@ public class RouteGeneration {
                     rr = DemoV90.Calculate(wayPointList, matrix, algoParams, cellStopPattern);
                     break;
 
-                case "V020":
-                    algoParams.setCapacity(1);
-                    algoParams.setIterations(5);
-                    algoParams.setLog(true);
-                    rr = SchrimpfV20.Calculate(wayPointList, matrix, algoParams, cellStopPattern);
-                    break;
-
-                case "V021":
-                    algoParams.setMinDistance(5);
-                    algoParams.setMaxDistance(7);
-                    algoParams.setSiteRadius(1);
-                    //algoParams.setAddNoLessNewStops(4);
-                    algoParams.setRemoveWithLessUnique(3);
-                    algoParams.setOnePair(true);
-
-                    algoParams.setCapacity(20);
-                    algoParams.setIterations(4);
-                    algoParams.setLog(true);
-                    rr = SchrimpfV21.Calculate(wayPointList, matrix, algoParams, cellStopPattern);
-                    break;
-
-                case "V022":
-                    algoParams.setMinDistance(4);
-                    algoParams.setMaxDistance(7);
-                    algoParams.setSiteRadius(90);
-                    //algoParams.setAddNoLessNewStops(4);
-                    algoParams.setRemoveWithLessUnique(3);
-                    algoParams.setOnePair(true);
-
-                    algoParams.setCapacity(20);
-                    algoParams.setIterations(4);
-                    algoParams.setLog(true);
-                    rr = SchrimpfV22.Calculate(wayPointList, matrix, algoParams, cellStopPattern);
-                    break;
-
-                case "V023":
-                    algoParams.setMinDistance(3);
-                    algoParams.setMaxDistance(7);
-                    algoParams.setSiteRadius(90);
-                    //algoParams.setAddNoLessNewStops(4);
-                    algoParams.setRemoveWithLessUnique(3);
-                    algoParams.setOnePair(true);
-
-                    algoParams.setCapacity(20);
-                    algoParams.setIterations(20);
-                    algoParams.setLog(true);
-                    rr = SchrimpfV23.Calculate(wayPointList, matrix, algoParams, cellStopPattern);
-                    break;
 
                 default:
                     System.out.println("No such algo!");
@@ -275,8 +199,8 @@ public class RouteGeneration {
                 if(newVersion)
                 {
                     Version version = new Version();
-                    version.setDesc("Demo.V90 ЗАО: от остановки к метро");
-                    version.setDate(Date.valueOf("2022-5-11"));
+                    version.setDesc("jsprit.V02 ЗАО: max");
+                    version.setDate(Date.valueOf("2022-7-05"));
                     updateVersion(version);
                     versionId = version.getVersionId();
                 }
@@ -334,43 +258,6 @@ public class RouteGeneration {
                     long elapsedTime = System.currentTimeMillis() - elTime;
                     System.out.printf("\n%d variants calculated in: %d seconds", resultMap.size(), elapsedTime / 1000);
                     break;
-                case "V01":
-
-                    TreeMap<KPIs, AlgoParams> resultMap01 = new TreeMap<>(new KPIcomparator());
-
-                    for (int i = 1; i < 6; i++)
-                        for (int j = 1; j < 6; j++)
-                             {
-                                 algoParams.setSiteRadius(200);
-                                 algoParams.setMinTerminalGap(i);
-                                 algoParams.setRemoveWithLessUnique(j);
-                                 algoParams.setOnePair(true);
-                                 algoParams.setOnlyMetro(false);
-                                        rr = PointV01.Calculate(wayPointList, matrix, algoParams, cellStopPattern);
-
-                                        // ----- EVALUATE ---------
-
-                                        KPIs kpis = eval(rr, matrix, cellStopPattern);
-                                        resultMap01.put(kpis, algoParams);
-                                    }
-
-                    for (Map.Entry<KPIs, AlgoParams> me : resultMap01.entrySet()) {
-                        System.out.printf("\n\nFor params radius: %d  remove: %d",
-
-                                me.getValue().getMinTerminalGap(),
-                                me.getValue().getRemoveWithLessUnique()
-                        );
-                        System.out.println("\nKPI #1: " + me.getKey().getCellToStop());
-                        System.out.println("KPI #2: " + me.getKey().getCellToMetroSimple());
-                        System.out.println("KPI #3: " + me.getKey().getCellToMetroFull());
-                        System.out.println(me.getKey().getRouteCount() + " trips");
-                        System.out.println(me.getKey().getStopCount() + " stops used");
-                        System.out.println("total distance: " + me.getKey().getTotalDistance() / 1000);
-                    }
-
-                    elapsedTime = System.currentTimeMillis() - elTime;
-                    System.out.printf("\n%d variants calculated in: %d seconds", resultMap01.size(), elapsedTime / 1000);
-                    break;
 
                 case "V011":
 
@@ -416,7 +303,7 @@ public class RouteGeneration {
 
                     TreeMap<KPIs, AlgoParams> resultMap11 = new TreeMap<>(new KPIcomparator());
 
-                    for (int i = 1; i < 7; i++)
+                    for (int i = 1; i < 5; i++)
                         for (int j = 1; j < 7; j++)
                             {
                                 algoParams = new AlgoParams();
@@ -428,8 +315,8 @@ public class RouteGeneration {
                                 algoParams.setOnePair(true);
                                 algoParams.setOnlyMetro(false);
                                 algoParams.setMaxDetour(5);
-                                //algoParams.setPopToDiscard(20000);
-                                algoParams.setPop(false);
+                                algoParams.setPopToDiscard(j*10000);
+                                algoParams.setPop(true);
                                 algoParams.setReverseDetour(1.2);
                                 rr = new V11().Calculate(wayPointList, matrix, algoParams, cellStopPattern);
 

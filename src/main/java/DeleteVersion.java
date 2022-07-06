@@ -16,7 +16,7 @@ public class DeleteVersion
     public static void main(String[] args)
     {
 
-        int versionId = 3;
+        int versionId = 7;
 
         Version version = getVersionById(versionId);
         deleteVersion(version);
